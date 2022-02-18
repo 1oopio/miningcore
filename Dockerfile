@@ -3,8 +3,8 @@ WORKDIR /app
 RUN apt-get update && \
     apt-get -y install cmake build-essential libssl-dev pkg-config libboost-all-dev libsodium-dev libzmq5 libzmq3-dev
 COPY . .
-RUN cd src/Miningcore && \
-    dotnet publish -c Release --framework net6.0 -o ../../build
+WORKDIR /app/src/Miningcore
+RUN dotnet publish -c Release --framework net6.0 -o ../../build
 
 FROM mcr.microsoft.com/dotnet/aspnet:6.0-focal
 WORKDIR /app
