@@ -3,6 +3,9 @@
 
 <img src="https://github.com/oliverw/miningcore/raw/master/logo.png" width="150">
 
+## Note on the versioning
+v1.0.0 is equal to oliverw/miningcore:v68
+
 ### Features
 
 - Supports clusters of pools each running individual currencies
