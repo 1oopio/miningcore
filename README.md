@@ -1,4 +1,5 @@
-[![.NET](https://github.com/oliverw/miningcore/actions/workflows/dotnet.yml/badge.svg)](https://github.com/oliverw/miningcore/actions/workflows/dotnet.yml)
+[![.NET](https://github.com/stratumfarm/miningcore/actions/workflows/dotnet.yml/badge.svg)](https://github.com/stratumfarm/miningcore/actions/workflows/dotnet.yml)
+[![docker](https://github.com/stratumfarm/miningcore/actions/workflows/docker.yml/badge.svg)](https://github.com/stratumfarm/miningcore/actions/workflows/docker.yml)
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)]()
 
 <img src="https://github.com/oliverw/miningcore/raw/master/logo.png" width="150">
