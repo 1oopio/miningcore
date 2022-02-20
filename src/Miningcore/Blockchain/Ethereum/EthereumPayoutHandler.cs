@@ -322,6 +322,9 @@ public class EthereumPayoutHandler : PayoutHandlerBase,
             case GethChainType.Callisto:
                 return CallistoConstants.BaseRewardInitial * (CallistoConstants.TreasuryPercent / 100);
 
+            case GethChainType.ZilliqaMainnet:
+                return ZilliqaConstants.BaseRewardInitial;
+
             default:
                 throw new Exception("Unable to determine block reward: Unsupported chain type");
         }

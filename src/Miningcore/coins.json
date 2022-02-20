@@ -1575,6 +1575,17 @@
         "explorerTxLink": "https://explorer.callisto.network/tx/{0}",
         "explorerAccountLink": "https://explorer.callisto.network/address/{0}"
     },
+    "zilliqa": {
+        "name": "Zilliqa Network",
+        "symbol": "ZIL",
+        "family": "ethereum",
+        "explorerBlockLinks": {
+            "block": "https://viewblock.io/zilliqa/blocks/$height$",
+            "uncle": "https://viewblock.io/zilliqa/blocks/$height$"
+        },
+        "explorerTxLink": "https://viewblock.io/zilliqa/tx/{0}",
+        "explorerAccountLink": "https://viewblock.io/zilliqaaddress/{0}"
+    },
     "raptoreum": {
         "name": "Raptoreum",
         "canonicalName": "Raptoreum",

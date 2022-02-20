@@ -49,11 +49,19 @@ public class CallistoConstants
     public const decimal TreasuryPercent = 50m;
 }
 
+public class ZilliqaConstants
+{
+    public const decimal BaseRewardInitial = 0m;
+    public const decimal TreasuryPercent = 50m;
+}
+
 public enum EthereumNetworkType
 {
     Mainnet = 1,
     Ropsten = 3,
     Callisto = 820,
+    Zilliqa = 1,
+    ZilliqaTestnet= 333,
 
     Unknown = -1,
 }
@@ -63,6 +71,8 @@ public enum GethChainType
     Ethereum,
     Ropsten,
     Callisto,
+    Zilliqa,
+    ZilliqaTestnet,
 
     Unknown = -1,
 }

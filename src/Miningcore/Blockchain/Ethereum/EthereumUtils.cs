@@ -28,5 +28,8 @@ public static class EthereumUtils
 
         if(chainType == GethChainType.Callisto)
             chainType = GethChainType.Callisto;
+
+        if(chainType == GethChainType.Zilliqa)
+            chainType = GethChainType.Zilliqa;
     }
 }
