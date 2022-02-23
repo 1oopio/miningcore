@@ -174,11 +174,11 @@ public class StatsRepository : IStatsRepository
             .ToArray();
     }
 
-    public async Task<WorkerPerformanceStatsContainer[]> GetMinerPerformanceBetweenThreeMinutelyAsync(IDbConnection con, string poolId, string miner,
+    public async Task<WorkerPerformanceStatsContainer[]> GetMinerPerformanceBetweenTenMinutelyAsync(IDbConnection con, string poolId, string miner,
         DateTime start, DateTime end, CancellationToken ct)
     {
          const string query = @"SELECT date_trunc('hour', created) AS created,
-            (extract(minute FROM created)::int / 3) AS partition,
+            (extract(minute FROM created)::int / 10) AS partition,
             worker, AVG(hashrate) AS hashrate, AVG(sharespersecond) AS sharespersecond
             FROM minerstats
             WHERE poolid = @poolId AND miner = @miner AND created >= @start AND created <= @end
@@ -195,7 +195,7 @@ public class StatsRepository : IStatsRepository
             entity.Worker ??= string.Empty;
 
             // adjust creation time by partition
-            entity.Created = entity.Created.AddMinutes(3 * entity.Partition);
+            entity.Created = entity.Created.AddMinutes(10 * entity.Partition);
         }
 
         // group
