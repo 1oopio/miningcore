@@ -640,7 +640,7 @@ public class PoolApiController : ApiControllerBase
 
                 start = end.AddHours(-1);
 
-                stats = await cf.Run(con => statsRepo.GetMinerPerformanceBetweenThreeMinutelyAsync(con, pool.Id, address, start, end, ct));
+                stats = await cf.Run(con => statsRepo.GetMinerPerformanceBetweenTenMinutelyAsync(con, pool.Id, address, start, end, ct));
                 break;
 
             case SampleRange.Day:
@@ -653,19 +653,16 @@ public class PoolApiController : ApiControllerBase
 
                 start = end.AddDays(-1);
 
-                stats = await cf.Run(con => statsRepo.GetMinerPerformanceBetweenHourlyAsync(con, pool.Id, address, start, end, ct));
+                stats = await cf.Run(con => statsRepo.GetMinerPerformanceBetweenTenMinutelyAsync(con, pool.Id, address, start, end, ct));
                 break;
 
             case SampleRange.Month:
-                if(end.Hour < 12)
-                    end = end.AddDays(-1);
-
-                end = end.Date;
+                end = end.AddSeconds(-end.Second);
 
                 // set range
                 start = end.AddMonths(-1);
 
-                stats = await cf.Run(con => statsRepo.GetMinerPerformanceBetweenDailyAsync(con, pool.Id, address, start, end, ct));
+                stats = await cf.Run(con => statsRepo.GetMinerPerformanceBetweenTenMinutelyAsync(con, pool.Id, address, start, end, ct));
                 break;
         }
 
