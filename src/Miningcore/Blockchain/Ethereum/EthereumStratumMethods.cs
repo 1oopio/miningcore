@@ -53,7 +53,12 @@ public static class EthereumStratumMethods
     public const string SubmitWork = "eth_submitWork";
 
     /// <summary>
-    /// Ignored
+    /// Reported hashrate old method
     /// </summary>
     public const string SubmitHashrate = "eth_submitHashrate";
+
+    /// <summary>
+    /// Reported hashrate stratum v2
+    /// </summary>
+    public const string Hashrate = "mining.hashrate";
 }

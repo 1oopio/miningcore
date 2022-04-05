@@ -3,6 +3,7 @@ namespace Miningcore.Persistence.Model.Projections;
 public record WorkerPerformanceStats
 {
     public double Hashrate { get; init; }
+    public double ReportedHashrate { get; init; }
     public double SharesPerSecond { get; init; }
 }
 

@@ -10,6 +10,7 @@ public class MinerPerformanceStats
 public class WorkerPerformanceStats
 {
     public double Hashrate { get; set; }
+    public double ReportedHashrate { get; set; }
     public double SharesPerSecond { get; set; }
 }
 
