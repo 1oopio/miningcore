@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
@@ -14,7 +15,9 @@ using Miningcore.Persistence;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Stratum;
 using Miningcore.Time;
+using Miningcore.Extensions;
 using Newtonsoft.Json;
+using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
 
 namespace Miningcore.Blockchain.Ethereum;
@@ -157,6 +160,71 @@ public class EthereumPool : PoolBase
 
             Disconnect(connection);
         }
+    }
+
+    private async Task OnSubmitHashrate(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct, bool v1 = false)
+    {
+        var request = tsRequest.Value;
+        var context = connection.ContextAs<EthereumWorkerContext>();
+
+        // validate worker
+        if(!context.IsAuthorized)
+            throw new StratumException(StratumError.UnauthorizedWorker, "unauthorized worker");
+        if(!context.IsSubscribed)
+            throw new StratumException(StratumError.NotSubscribed, "not subscribed");
+
+        // recognize activity
+        context.LastActivity = clock.Now;
+
+        await connection.RespondAsync(true, request.Id);
+
+        var hashrateRequest = request.ParamsAs<string[]>();
+
+
+        if(!v1)
+            await SubmitHashrateV2Async(connection, hashrateRequest, ct);
+        else
+            await SubmitHashrateV1Async(connection, hashrateRequest, GetWorkerNameFromV1Request(request, context), ct);
+
+    }
+
+    public async Task<bool> SubmitHashrateV1Async(StratumConnection connection, string[] request, string workerName, CancellationToken ct)
+    {
+        Contract.RequiresNonNull(connection, nameof(connection));
+        Contract.RequiresNonNull(request, nameof(request));
+
+        var context = connection.ContextAs<EthereumWorkerContext>();
+        var hashrate = request[0];
+
+        return await SubmitHashrateAsync(connection, context, workerName, hashrate.StripHexPrefix(), ct);
+    }
+
+    public async Task<bool> SubmitHashrateV2Async(StratumConnection connection, string[] request, CancellationToken ct)
+    {
+        Contract.RequiresNonNull(connection, nameof(connection));
+        Contract.RequiresNonNull(request, nameof(request));
+
+        var context = connection.ContextAs<EthereumWorkerContext>();
+        var hashrate = request[0];
+
+        return await SubmitHashrateAsync(connection, context, context.Worker, hashrate.StripHexPrefix(), ct);
+    }
+
+    private Task<bool> SubmitHashrateAsync(StratumConnection connection, EthereumWorkerContext context, string workerName, string hashrate, CancellationToken ct)
+    {
+        if(!ulong.TryParse(hashrate, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var longHashrate))
+            throw new StratumException(StratumError.MinusOne, "bad hashrate " + hashrate);
+
+        var lastAge = clock.Now - context.Stats.LastReportedHashrate;
+        context.Stats.ReportedHashrate = longHashrate;
+
+        if(lastAge > reportedHashrateInterval)
+        {
+            context.Stats.LastReportedHashrate = clock.Now;
+            messageBus.SendMessage(new StratumReportedHashrate(connection, poolConfig.Id, context.Miner, workerName, longHashrate));
+        }
+
+        return Task.FromResult(true);
     }
 
     private async Task OnSubmitAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct, bool v1 = false)
@@ -496,7 +564,15 @@ public class EthereumPool : PoolBase
                     break;
 
                 case EthereumStratumMethods.SubmitHashrate:
-                    await connection.RespondAsync(true, request.Id);
+                    EnsureProtocolVersion(context, 1);
+
+                    await OnSubmitHashrate(connection, tsRequest, ct, true);
+                    break;
+
+                case EthereumStratumMethods.Hashrate:
+                    EnsureProtocolVersion(context, 2);
+
+                    await OnSubmitHashrate(connection, tsRequest, ct, false);
                     break;
 
                 default:

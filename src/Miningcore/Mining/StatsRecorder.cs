@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Microsoft.Extensions.Hosting;
@@ -18,6 +19,7 @@ using Miningcore.Persistence.Model;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Time;
 using Miningcore.Util;
+using static Miningcore.Util.ActionUtils;
 using NLog;
 using Polly;
 
@@ -85,6 +87,26 @@ public class StatsRecorder : BackgroundService
     {
         if(notification.Status == PoolStatus.Online)
             AttachPool(notification.Pool);
+    }
+
+    private async Task OnMinerWorkerReportedHashrate(StratumReportedHashrate notification, CancellationToken ct)
+    {
+        var stats = new MinerWorkerPerformanceStats
+        {
+            Created = clock.Now,
+            PoolId = notification.PoolId,
+            Miner = notification.Miner,
+            Worker = notification.Worker,
+            Hashrate = notification.Hashrate,
+            HashrateType = "reported"
+        };
+
+        // persist
+        await cf.RunTx(async (con, tx) =>
+            await statsRepo.InsertMinerWorkerPerformanceStatsAsync(con, tx, stats, ct)
+        );
+
+        logger.Info(() => $"[{stats.PoolId}] Worker {stats.Miner}{(!string.IsNullOrEmpty(stats.Worker) ? $".{stats.Worker}" : string.Empty)}: Reported: {FormatUtil.FormatHashrate(stats.Hashrate)}");
     }
 
     private async Task UpdatePoolHashratesAsync(CancellationToken ct)
@@ -169,7 +191,7 @@ public class StatsRecorder : BackgroundService
 
             // retrieve most recent miner/worker non-zero hashrate sample
             var previousMinerWorkerHashrates = await cf.Run(con =>
-                statsRepo.GetPoolMinerWorkerHashratesAsync(con, poolId, ct));
+                statsRepo.GetPoolMinerWorkerHashratesAsync(con, poolId, "actual", ct));
 
             const char keySeparator = '.';
 
@@ -376,6 +398,11 @@ public class StatsRecorder : BackgroundService
             disposables.Add(messageBus.Listen<PoolStatusNotification>()
                 .ObserveOn(TaskPoolScheduler.Default)
                 .Subscribe(OnPoolStatusNotification));
+
+            // Reported hashrate
+            disposables.Add(messageBus.Listen<StratumReportedHashrate>()
+                .ObserveOn(TaskPoolScheduler.Default)
+                .Subscribe(msg => Task.FromResult(OnMinerWorkerReportedHashrate(msg, ct))));
 
             logger.Info(() => "Online");
 

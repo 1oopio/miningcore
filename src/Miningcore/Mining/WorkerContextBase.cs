@@ -9,6 +9,8 @@ public class ShareStats
 {
     public int ValidShares { get; set; }
     public int InvalidShares { get; set; }
+    public ulong ReportedHashrate { get; set; }
+    public DateTime LastReportedHashrate { get; set; }
 }
 
 public class WorkerContextBase
