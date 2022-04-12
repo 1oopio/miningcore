@@ -40,8 +40,11 @@ public class StatsRepository : IStatsRepository
         if(string.IsNullOrEmpty(mapped.Worker))
             mapped.Worker = string.Empty;
 
-        const string query = @"INSERT INTO minerstats(poolid, miner, worker, hashrate, sharespersecond, created)
-            VALUES(@poolid, @miner, @worker, @hashrate, @sharespersecond, @created)";
+        if(string.IsNullOrEmpty(mapped.HashrateType))
+            mapped.HashrateType = "actual";
+
+        const string query = @"INSERT INTO minerstats(poolid, miner, worker, hashrate, hashratetype, sharespersecond, created)
+            VALUES(@poolid, @miner, @worker, @hashrate, @hashratetype, @sharespersecond, @created)";
 
         await con.ExecuteAsync(new CommandDefinition(query, mapped, tx, cancellationToken: ct));
     }
@@ -102,7 +105,7 @@ public class StatsRepository : IStatsRepository
             result.LastPayment = await con.QuerySingleOrDefaultAsync<Payment>(new CommandDefinition(query, new { poolId, miner }, tx, cancellationToken: ct));
 
             // query timestamp of last stats update
-            query = @"SELECT created FROM minerstats WHERE poolid = @poolId AND miner = @miner
+            query = @"SELECT created FROM minerstats WHERE poolid = @poolId AND miner = @miner AND hashratetype = 'actual'
                 ORDER BY created DESC LIMIT 1";
 
             var lastUpdate = await con.QuerySingleOrDefaultAsync<DateTime?>(new CommandDefinition(query, new { poolId, miner }, tx, cancellationToken: ct));
@@ -111,13 +114,30 @@ public class StatsRepository : IStatsRepository
             if(lastUpdate.HasValue && (clock.Now - DateTime.SpecifyKind(lastUpdate.Value, DateTimeKind.Utc) > MinerStatsMaxAge))
                 lastUpdate = null;
 
+            // query timestamp of last reported stats update
+            query = @"SELECT created FROM minerstats WHERE poolid = @poolId AND miner = @miner AND hashratetype = 'reported'
+                ORDER BY created DESC LIMIT 1";
+
+            var lastReportedUpdate = await con.QuerySingleOrDefaultAsync<DateTime?>(new CommandDefinition(query, new { poolId, miner }, tx, cancellationToken: ct));
+
+            // ignore stale minerstats
+            if(lastReportedUpdate.HasValue && (clock.Now - DateTime.SpecifyKind(lastReportedUpdate.Value, DateTimeKind.Utc) > MinerStatsMaxAge))
+                lastReportedUpdate = null;
+
             if(lastUpdate.HasValue)
             {
-                // load rows rows by timestamp
-                query = @"SELECT * FROM minerstats WHERE poolid = @poolId AND miner = @miner AND created = @created";
+                if (lastReportedUpdate.HasValue)
+                {
+                    // load rows rows by timestamp with reported subselected 
+                    query = @"SELECT *, (SELECT hashrate FROM minerstats WHERE poolid = @poolId AND miner = @miner AND created = @createdReported AND hashratetype = 'reported' LIMIT 1) as reportedHashrate FROM minerstats WHERE poolid = @poolId AND miner = @miner AND created = @created AND hashratetype = 'actual'";
+                } else
+                {
+                    // load rows rows by timestamp
+                    query = @"SELECT * FROM minerstats WHERE poolid = @poolId AND miner = @miner AND created = @created AND hashratetype = 'actual'";
+                }
 
                 var stats = (await con.QueryAsync<Entities.MinerWorkerPerformanceStats>(new CommandDefinition(query,
-                        new { poolId, miner, created = lastUpdate }, cancellationToken: ct)))
+                        new { poolId, miner, created = lastUpdate, createdReported = lastReportedUpdate }, cancellationToken: ct)))
                     .Select(mapper.Map<MinerWorkerPerformanceStats>)
                     .ToArray();
 
@@ -139,6 +159,7 @@ public class StatsRepository : IStatsRepository
                         Workers = stats.ToDictionary(x => x.Worker ?? string.Empty, x => new WorkerPerformanceStats
                         {
                             Hashrate = x.Hashrate,
+                            ReportedHashrate = x.ReportedHashrate,
                             SharesPerSecond = x.SharesPerSecond
                         }),
 
@@ -151,7 +172,7 @@ public class StatsRepository : IStatsRepository
         return result;
     }
 
-    public async Task<MinerWorkerHashrate[]> GetPoolMinerWorkerHashratesAsync(IDbConnection con, string poolId, CancellationToken ct)
+    public async Task<MinerWorkerHashrate[]> GetPoolMinerWorkerHashratesAsync(IDbConnection con, string poolId, string hashrateType, CancellationToken ct)
     {
         const string query =
             @"SELECT s.miner, s.worker, s.hashrate FROM
@@ -162,7 +183,7 @@ public class StatsRepository : IStatsRepository
                         ROW_NUMBER() OVER (partition BY miner, worker ORDER BY created DESC) as rk,
                         miner, worker, hashrate
                     FROM minerstats
-                    WHERE poolid = @poolId
+                    WHERE poolid = @poolId AND hashratetype = @hashrateType
                 )
                 SELECT miner, worker, hashrate
                 FROM cte
@@ -170,20 +191,23 @@ public class StatsRepository : IStatsRepository
             ) s
             WHERE s.hashrate > 0;";
 
-        return (await con.QueryAsync<MinerWorkerHashrate>(new CommandDefinition(query, new { poolId }, cancellationToken: ct)))
+        return (await con.QueryAsync<MinerWorkerHashrate>(new CommandDefinition(query, new { poolId, hashrateType }, cancellationToken: ct)))
             .ToArray();
     }
 
     public async Task<WorkerPerformanceStatsContainer[]> GetMinerPerformanceBetweenTenMinutelyAsync(IDbConnection con, string poolId, string miner,
         DateTime start, DateTime end, CancellationToken ct)
     {
-         const string query = @"SELECT date_trunc('hour', created) AS created,
-            (extract(minute FROM created)::int / 10) AS partition,
-            worker, AVG(hashrate) AS hashrate, AVG(sharespersecond) AS sharespersecond
-            FROM minerstats
-            WHERE poolid = @poolId AND miner = @miner AND created >= @start AND created <= @end
-            GROUP BY 1, 2, worker
-            ORDER BY 1, 2, worker";
+        const string query = @"SELECT date_trunc('hour', x.created) AS created,
+           (extract(minute FROM x.created)::int / 10) AS partition,
+           x.worker, AVG(x.hs) AS hashrate, AVG(x.rhs) AS reportedhashrate, AVG(x.sharespersecond) AS sharespersecond
+           FROM (
+           SELECT created, hashrate as hs, null as rhs, sharespersecond, worker FROM minerstats WHERE poolid = @poolId AND miner = @miner AND created >= @start AND created <= @end AND hashratetype = 'actual'
+           UNION 
+           SELECT created, null as hs, hashrate as rhs, null as sharespersecond, worker FROM minerstats WHERE poolid = @poolId AND miner = @miner AND created >= @start AND created <= @end AND hashratetype = 'reported'
+           ) as x
+           GROUP BY 1, 2, worker
+           ORDER BY 1, 2, worker";
 
         var entities = (await con.QueryAsync<Entities.MinerWorkerPerformanceStats>(new CommandDefinition(query,
                 new { poolId, miner, start, end }, cancellationToken: ct)))
@@ -208,6 +232,7 @@ public class StatsRepository : IStatsRepository
             Workers = x.ToDictionary(y => y.Worker, y => new WorkerPerformanceStats
             {
                 Hashrate = y.Hashrate,
+                ReportedHashrate = y.ReportedHashrate,
                 SharesPerSecond = y.SharesPerSecond
             })
         })
@@ -221,7 +246,7 @@ public class StatsRepository : IStatsRepository
     {
         const string query = @"SELECT worker, date_trunc('minute', created) AS created, AVG(hashrate) AS hashrate,
             AVG(sharespersecond) AS sharespersecond FROM minerstats
-            WHERE poolid = @poolId AND miner = @miner AND created >= @start AND created <= @end
+            WHERE poolid = @poolId AND miner = @miner AND created >= @start AND created <= @end AND hashratetype = 'actual'
             GROUP BY date_trunc('minute', created), worker
             ORDER BY created, worker;";
 
@@ -256,7 +281,7 @@ public class StatsRepository : IStatsRepository
     {
         const string query = @"SELECT worker, date_trunc('hour', created) AS created, AVG(hashrate) AS hashrate,
             AVG(sharespersecond) AS sharespersecond FROM minerstats
-            WHERE poolid = @poolId AND miner = @miner AND created >= @start AND created <= @end
+            WHERE poolid = @poolId AND miner = @miner AND created >= @start AND created <= @end AND hashratetype = 'actual'
             GROUP BY date_trunc('hour', created), worker
             ORDER BY created, worker;";
 
@@ -291,7 +316,7 @@ public class StatsRepository : IStatsRepository
     {
         const string query = @"SELECT worker, date_trunc('day', created) AS created, AVG(hashrate) AS hashrate,
             AVG(sharespersecond) AS sharespersecond FROM minerstats
-            WHERE poolid = @poolId AND miner = @miner AND created >= @start AND created <= @end
+            WHERE poolid = @poolId AND miner = @miner AND created >= @start AND created <= @end AND hashratetype = 'actual'
             GROUP BY date_trunc('day', created), worker
             ORDER BY created, worker;";
 
@@ -327,7 +352,7 @@ public class StatsRepository : IStatsRepository
             		ROW_NUMBER() OVER(PARTITION BY ms.miner ORDER BY ms.hashrate DESC) AS rk
             	FROM (SELECT miner, SUM(hashrate) AS hashrate, SUM(sharespersecond) AS sharespersecond
                    FROM minerstats
-                   WHERE poolid = @poolid AND created >= @from GROUP BY miner, created) ms
+                   WHERE poolid = @poolid AND created >= @from AND hashratetype = 'actual' GROUP BY miner, created) ms
             )
             SELECT t.miner, t.hashrate, t.sharespersecond
             FROM tmp t
