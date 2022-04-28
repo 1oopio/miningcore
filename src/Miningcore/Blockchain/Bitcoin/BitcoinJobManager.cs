@@ -151,6 +151,11 @@ public class BitcoinJobManager : BitcoinJobManagerBase<BitcoinJob>
             return (isNew, forceUpdate);
         }
 
+        catch(OperationCanceledException)
+        {
+            // ignored
+        }
+
         catch(Exception ex)
         {
             logger.Error(ex, () => $"Error during {nameof(UpdateJob)}");
@@ -181,9 +186,9 @@ public class BitcoinJobManager : BitcoinJobManagerBase<BitcoinJob>
         base.Configure(pc, cc);
     }
 
-    public virtual object[] GetSubscriberData(StratumConnection worker)
+ public virtual object[] GetSubscriberData(StratumConnection worker)
     {
-        Contract.RequiresNonNull(worker, nameof(worker));
+        Contract.RequiresNonNull(worker);
 
         var context = worker.ContextAs<BitcoinWorkerContext>();
 
@@ -203,14 +208,14 @@ public class BitcoinJobManager : BitcoinJobManagerBase<BitcoinJob>
     public virtual async ValueTask<Share> SubmitShareAsync(StratumConnection worker, object submission,
         CancellationToken ct)
     {
-        Contract.RequiresNonNull(worker, nameof(worker));
-        Contract.RequiresNonNull(submission, nameof(submission));
+        Contract.RequiresNonNull(worker);
+        Contract.RequiresNonNull(submission);
 
         if(submission is not object[] submitParams)
             throw new StratumException(StratumError.Other, "invalid params");
 
         var context = worker.ContextAs<BitcoinWorkerContext>();
-
+        
         // extract params
         var workerValue = (submitParams[0] as string)?.Trim();
         var jobId = submitParams[1] as string;
