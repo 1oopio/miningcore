@@ -178,7 +178,7 @@ public static unsafe class Cryptonight
 
     public static void CryptonightHash(ReadOnlySpan<byte> data, Span<byte> result, Algorithm algo, ulong height)
     {
-        Contract.Requires<ArgumentException>(result.Length >= 32, $"{nameof(result)} must be greater or equal 32 bytes");
+        Contract.Requires<ArgumentException>(result.Length >= 32);
         Contract.Requires<ArgumentException>(validCryptonightAlgos.Contains(algo), $"{nameof(algo)} does not fall into valid range");
 
         var sw = Stopwatch.StartNew();
@@ -200,7 +200,7 @@ public static unsafe class Cryptonight
 
     public static void CryptonightLiteHash(ReadOnlySpan<byte> data, Span<byte> result, Algorithm algo, ulong height)
     {
-        Contract.Requires<ArgumentException>(result.Length >= 32, $"{nameof(result)} must be greater or equal 32 bytes");
+        Contract.Requires<ArgumentException>(result.Length >= 32);
         Contract.Requires<ArgumentException>(validCryptonightLiteAlgos.Contains(algo), $"{nameof(algo)} does not fall into valid range");
 
         var sw = Stopwatch.StartNew();
@@ -222,7 +222,7 @@ public static unsafe class Cryptonight
 
     public static void CryptonightHeavyHash(ReadOnlySpan<byte> data, Span<byte> result, Algorithm algo, ulong height)
     {
-        Contract.Requires<ArgumentException>(result.Length >= 32, $"{nameof(result)} must be greater or equal 32 bytes");
+        Contract.Requires<ArgumentException>(result.Length >= 32);
         Contract.Requires<ArgumentException>(validCryptonightHeavyAlgos.Contains(algo), $"{nameof(algo)} does not fall into valid range");
 
         var sw = Stopwatch.StartNew();
@@ -244,7 +244,7 @@ public static unsafe class Cryptonight
 
     public static void CryptonightPicoHash(ReadOnlySpan<byte> data, Span<byte> result, Algorithm algo, ulong height)
     {
-        Contract.Requires<ArgumentException>(result.Length >= 32, $"{nameof(result)} must be greater or equal 32 bytes");
+        Contract.Requires<ArgumentException>(result.Length >= 32);
         Contract.Requires<ArgumentException>(validCryptonightPicoAlgos.Contains(algo), $"{nameof(algo)} does not fall into valid range");
 
         var sw = Stopwatch.StartNew();
@@ -266,7 +266,7 @@ public static unsafe class Cryptonight
 
     public static void ArgonHash(ReadOnlySpan<byte> data, Span<byte> result, Algorithm algo, ulong height)
     {
-        Contract.Requires<ArgumentException>(result.Length >= 32, $"{nameof(result)} must be greater or equal 32 bytes");
+        Contract.Requires<ArgumentException>(result.Length >= 32);
         Contract.Requires<ArgumentException>(validArgonAlgos.Contains(algo), $"{nameof(algo)} does not fall into valid range");
 
         var sw = Stopwatch.StartNew();
