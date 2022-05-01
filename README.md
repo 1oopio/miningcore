@@ -5,7 +5,7 @@
 <img src="https://github.com/oliverw/miningcore/raw/master/logo.png" width="150">
 
 ## Note on the versioning
-v1.0.2 contains all changes from oliverw/miningcore:v68 to oliverw/miningcore:v69
+v1.0.2 contains all changes from oliverw/miningcore:v68 to oliverw/miningcore:v69 <br />
 v1.0.0 is equal to oliverw/miningcore:v68
 
 ### Features
