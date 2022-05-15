@@ -13,9 +13,9 @@ using ZeroMQ;
 
 namespace Miningcore.Mining;
 
-public class ShareRelay : IHostedService
+public class RelayPublisher : IHostedService
 {
-    public ShareRelay(ClusterConfig clusterConfig, IMessageBus messageBus)
+    public RelayPublisher(ClusterConfig clusterConfig, IMessageBus messageBus)
     {
         Contract.RequiresNonNull(messageBus);
 
@@ -25,8 +25,10 @@ public class ShareRelay : IHostedService
 
     private readonly IMessageBus messageBus;
     private readonly ClusterConfig clusterConfig;
-    private readonly BlockingCollection<Share> queue = new();
-    private IDisposable queueSub;
+    private readonly BlockingCollection<Share> shareQueue = new();
+    private readonly BlockingCollection<ReportedHashrate> hashrateQueue = new();
+    private IDisposable shareQueueSub;
+    private IDisposable hashrateQueueSub;
     private readonly int QueueSizeWarningThreshold = 1024;
     private bool hasWarnedAboutBacklogSize;
     private ZSocket pubSocket;
@@ -40,11 +42,19 @@ public class ShareRelay : IHostedService
         ProtocolBuffers = 2
     }
 
-    public const int WireFormatMask = 0xF;
-
-    private void InitializeQueue()
+    [Flags]
+    public enum DataType
     {
-        queueSub = queue.GetConsumingEnumerable()
+        Share = 1,
+        ReportedHashrate = 2
+    }
+
+    public const int WireFormatMask = 0xF;
+    public const int DataTypeMask = 0xF;
+
+    private void InitializeQueues()
+    {
+        shareQueueSub = shareQueue.GetConsumingEnumerable()
             .ToObservable(TaskPoolScheduler.Default)
             .Do(_ => CheckQueueBacklog())
             .Subscribe(share =>
@@ -64,13 +74,55 @@ public class ShareRelay : IHostedService
                         // Frame 2: flags
                         msg.Add(new ZFrame(flags));
 
-                        // Frame 3: payload
+                        // Frame 3: data type
+                        msg.Add(new ZFrame((int) DataType.Share));
+
+                        // Frame 4: payload
                         using(var stream = new MemoryStream())
                         {
                             Serializer.Serialize(stream, share);
                             msg.Add(new ZFrame(stream.ToArray()));
                         }
 
+                        logger.Info(() => $"Relay share");
+                        pubSocket.SendMessage(msg);
+                    }
+                }
+
+                catch(Exception ex)
+                {
+                    logger.Error(ex);
+                }
+            });
+        hashrateQueueSub = hashrateQueue.GetConsumingEnumerable()
+            .ToObservable(TaskPoolScheduler.Default)
+            .Do(_ => CheckQueueBacklog())
+            .Subscribe(hashrate =>
+            {
+
+                try
+                {
+                    const int flags = (int) WireFormat.ProtocolBuffers;
+
+                    using(var msg = new ZMessage())
+                    {
+                        // Topic frame
+                        msg.Add(new ZFrame(hashrate.PoolId));
+
+                        // Frame 2: flags
+                        msg.Add(new ZFrame(flags));
+
+                        // Frame 3: data type
+                        msg.Add(new ZFrame((int) DataType.ReportedHashrate));
+
+                        // Frame 4: payload
+                        using(var stream = new MemoryStream())
+                        {
+                            Serializer.Serialize(stream, hashrate);
+                            msg.Add(new ZFrame(stream.ToArray()));
+                        }
+
+                        logger.Info(() => $"Relay reported hashrate");
                         pubSocket.SendMessage(msg);
                     }
                 }
@@ -84,16 +136,16 @@ public class ShareRelay : IHostedService
 
     private void CheckQueueBacklog()
     {
-        if(queue.Count > QueueSizeWarningThreshold)
+        if(shareQueue.Count > QueueSizeWarningThreshold || hashrateQueue.Count > QueueSizeWarningThreshold)
         {
             if(!hasWarnedAboutBacklogSize)
             {
-                logger.Warn(() => $"Share relay queue backlog has crossed {QueueSizeWarningThreshold}");
+                logger.Warn(() => $"Relay queue backlog has crossed {QueueSizeWarningThreshold}");
                 hasWarnedAboutBacklogSize = true;
             }
         }
 
-        else if(hasWarnedAboutBacklogSize && queue.Count <= QueueSizeWarningThreshold / 2)
+        else if(hasWarnedAboutBacklogSize && shareQueue.Count <= QueueSizeWarningThreshold / 2 && hashrateQueue.Count <= QueueSizeWarningThreshold / 2)
         {
             hasWarnedAboutBacklogSize = false;
         }
@@ -101,7 +153,8 @@ public class ShareRelay : IHostedService
 
     public Task StartAsync(CancellationToken ct)
     {
-        messageBus.Listen<StratumShare>().Subscribe(x => queue.Add(x.Share, ct));
+        messageBus.Listen<StratumShare>().Subscribe(x => shareQueue.Add(x.Share, ct));
+        messageBus.Listen<StratumReportedHashrate>().Subscribe(x => hashrateQueue.Add(x.ReportedHashrate, ct));
 
         pubSocket = new ZSocket(ZSocketType.PUB);
 
@@ -127,7 +180,7 @@ public class ShareRelay : IHostedService
             logger.Info(() => $"Connected to {clusterConfig.ShareRelay.PublishUrl}");
         }
 
-        InitializeQueue();
+        InitializeQueues();
 
         logger.Info(() => "Online");
 
@@ -138,8 +191,11 @@ public class ShareRelay : IHostedService
     {
         pubSocket.Dispose();
 
-        queueSub?.Dispose();
-        queueSub = null;
+        shareQueueSub?.Dispose();
+        shareQueueSub = null;
+
+        hashrateQueueSub?.Dispose();
+        hashrateQueueSub = null;
 
         return Task.CompletedTask;
     }

@@ -290,11 +290,11 @@ public class Program : BackgroundService
         if(clusterConfig.ShareRelay == null)
         {
             services.AddHostedService<ShareRecorder>();
-            services.AddHostedService<ShareReceiver>();
+            services.AddHostedService<RelayReceiver>();
         }
 
         else
-            services.AddHostedService<ShareRelay>();
+            services.AddHostedService<RelayPublisher>();
 
         // API
         if(clusterConfig.Api == null || clusterConfig.Api.Enabled)
