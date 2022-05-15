@@ -110,13 +110,13 @@ public class AutofacModule : Module
         builder.RegisterType<ShareRecorder>()
             .SingleInstance();
 
-        builder.RegisterType<ShareReceiver>()
+        builder.RegisterType<RelayReceiver>()
             .SingleInstance();
 
         builder.RegisterType<BtStreamReceiver>()
             .SingleInstance();
 
-        builder.RegisterType<ShareRelay>()
+        builder.RegisterType<RelayPublisher>()
             .SingleInstance();
 
         builder.RegisterType<StatsRecorder>()

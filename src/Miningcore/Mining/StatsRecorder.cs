@@ -5,10 +5,10 @@ using System.Net.Sockets;
 using System.Reactive.Concurrency;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Microsoft.Extensions.Hosting;
+using Miningcore.Blockchain;
 using Miningcore.Configuration;
 using Miningcore.Contracts;
 using Miningcore.Extensions;
@@ -19,7 +19,6 @@ using Miningcore.Persistence.Model;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Time;
 using Miningcore.Util;
-using static Miningcore.Util.ActionUtils;
 using NLog;
 using Polly;
 
@@ -88,15 +87,15 @@ public class StatsRecorder : BackgroundService
             AttachPool(notification.Pool);
     }
 
-    private async Task OnMinerWorkerReportedHashrate(StratumReportedHashrate notification, CancellationToken ct)
+    private async Task OnMinerWorkerReportedHashrate(ReportedHashrate hashrate, CancellationToken ct)
     {
         var stats = new MinerWorkerPerformanceStats
         {
             Created = clock.Now,
-            PoolId = notification.PoolId,
-            Miner = notification.Miner,
-            Worker = notification.Worker,
-            Hashrate = notification.Hashrate,
+            PoolId = hashrate.PoolId,
+            Miner = hashrate.Miner,
+            Worker = hashrate.Worker,
+            Hashrate = hashrate.Hashrate,
             HashrateType = "reported"
         };
 
@@ -401,7 +400,7 @@ public class StatsRecorder : BackgroundService
             // Reported hashrate
             disposables.Add(messageBus.Listen<StratumReportedHashrate>()
                 .ObserveOn(TaskPoolScheduler.Default)
-                .Subscribe(msg => Task.FromResult(OnMinerWorkerReportedHashrate(msg, ct))));
+                .Subscribe(msg => Task.FromResult(OnMinerWorkerReportedHashrate(msg.ReportedHashrate, ct))));
 
             logger.Info(() => "Online");
 
