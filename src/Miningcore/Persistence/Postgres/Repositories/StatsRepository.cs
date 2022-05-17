@@ -114,27 +114,17 @@ public class StatsRepository : IStatsRepository
             if(lastUpdate.HasValue && (clock.Now - DateTime.SpecifyKind(lastUpdate.Value, DateTimeKind.Utc) > MinerStatsMaxAge))
                 lastUpdate = null;
 
-            // query timestamp of last reported stats update
-            query = @"SELECT created FROM minerstats WHERE poolid = @poolId AND miner = @miner AND hashratetype = 'reported'
-                ORDER BY created DESC LIMIT 1";
-
-            var lastReportedUpdate = await con.QuerySingleOrDefaultAsync<DateTime?>(new CommandDefinition(query, new { poolId, miner }, tx, cancellationToken: ct));
-
-            // ignore stale minerstats
-            if(lastReportedUpdate.HasValue && (clock.Now - DateTime.SpecifyKind(lastReportedUpdate.Value, DateTimeKind.Utc) > MinerStatsMaxAge))
-                lastReportedUpdate = null;
+            var lastReportedUpdate = clock.Now - MinerStatsMaxAge;
 
             if(lastUpdate.HasValue)
             {
-                if (lastReportedUpdate.HasValue)
-                {
-                    // load rows rows by timestamp with reported subselected 
-                    query = @"SELECT *, (SELECT hashrate FROM minerstats WHERE poolid = @poolId AND miner = @miner AND created = @createdReported AND hashratetype = 'reported' LIMIT 1) as reportedHashrate FROM minerstats WHERE poolid = @poolId AND miner = @miner AND created = @created AND hashratetype = 'actual'";
-                } else
-                {
-                    // load rows rows by timestamp
-                    query = @"SELECT * FROM minerstats WHERE poolid = @poolId AND miner = @miner AND created = @created AND hashratetype = 'actual'";
-                }
+                // load rows rows by timestamp with latest reported
+                query = @"SELECT ms.created, ms.poolid, ms.miner, ms.worker,
+                    (SELECT hashrate FROM minerstats hms WHERE hms.hashrateType = 'actual' AND hms.worker = ms.worker AND hms.miner = ms.miner AND hms.poolid = ms.poolid AND hms.created = ms.created ORDER BY hms.created DESC LIMIT 1),
+                    (SELECT sharespersecond FROM minerstats hms WHERE hms.hashrateType = 'actual' AND hms.worker = ms.worker AND hms.miner = ms.miner AND hms.poolid = ms.poolid AND hms.created = ms.created ORDER BY hms.created DESC LIMIT 1),
+                    (SELECT hashrate FROM minerstats hms WHERE hms.hashrateType = 'reported' AND hms.worker = ms.worker AND hms.miner = ms.miner AND hms.poolid = ms.poolid AND hms.created > @createdReported ORDER BY hms.created DESC LIMIT 1) as reportedHashrate
+                    FROM minerstats ms WHERE ms.poolid = @poolId AND ms.miner = @miner AND ms.created = @created GROUP BY ms.poolid, ms.miner, ms.worker, ms.created;
+                ";
 
                 var stats = (await con.QueryAsync<Entities.MinerWorkerPerformanceStats>(new CommandDefinition(query,
                         new { poolId, miner, created = lastUpdate, createdReported = lastReportedUpdate }, cancellationToken: ct)))
