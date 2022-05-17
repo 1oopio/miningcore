@@ -221,7 +221,14 @@ public class EthereumPool : PoolBase
         if(lastAge > reportedHashrateInterval)
         {
             context.Stats.LastReportedHashrate = clock.Now;
-            messageBus.SendMessage(new StratumReportedHashrate(connection, poolConfig.Id, context.Miner, workerName, longHashrate));
+            ReportedHashrate reported = new ReportedHashrate
+            {
+                PoolId = poolConfig.Id,
+                Miner = context.Miner,
+                Worker = workerName,
+                Hashrate = longHashrate
+            };
+            messageBus.SendMessage(new StratumReportedHashrate(connection, reported));
         }
 
         return Task.FromResult(true);

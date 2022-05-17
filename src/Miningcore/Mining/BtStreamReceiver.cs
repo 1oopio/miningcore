@@ -160,7 +160,7 @@ public class BtStreamReceiver : BackgroundService
                                 }
 
                                 if(error != null)
-                                    logger.Error(() => $"{nameof(ShareReceiver)}: {error.Name} [{error.Name}] during receive");
+                                    logger.Error(() => $"{nameof(RelayReceiver)}: {error.Name} [{error.Name}] during receive");
                             }
 
                             else
@@ -187,7 +187,7 @@ public class BtStreamReceiver : BackgroundService
 
                 catch(Exception ex)
                 {
-                    logger.Error(() => $"{nameof(ShareReceiver)}: {ex}");
+                    logger.Error(() => $"{nameof(RelayReceiver)}: {ex}");
 
                     if(!ct.IsCancellationRequested)
                         Thread.Sleep(1000);

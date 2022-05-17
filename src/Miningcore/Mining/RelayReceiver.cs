@@ -22,11 +22,11 @@ using ZeroMQ;
 namespace Miningcore.Mining;
 
 /// <summary>
-/// Receives external shares from relays and re-publishes for consumption
+/// Receives external shares or other data from relays and re-publishes for consumption
 /// </summary>
-public class ShareReceiver : BackgroundService
+public class RelayReceiver : BackgroundService
 {
-    public ShareReceiver(
+    public RelayReceiver(
         ClusterConfig clusterConfig,
         IMasterClock clock,
         IMessageBus messageBus)
@@ -82,7 +82,7 @@ public class ShareReceiver : BackgroundService
     {
         return Task.Run(() =>
         {
-            Thread.CurrentThread.Name = "ShareReceiver Socket Poller";
+            Thread.CurrentThread.Name = "RelayReceiver Socket Poller";
             var timeout = TimeSpan.FromMilliseconds(5000);
             var reconnectTimeout = TimeSpan.FromSeconds(60);
 
@@ -133,7 +133,7 @@ public class ShareReceiver : BackgroundService
                                 }
 
                                 if(error != null)
-                                    logger.Error(() => $"{nameof(ShareReceiver)}: {error.Name} [{error.Name}] during receive");
+                                    logger.Error(() => $"{nameof(RelayReceiver)}: {error.Name} [{error.Name}] during receive");
                             }
 
                             else
@@ -160,7 +160,7 @@ public class ShareReceiver : BackgroundService
 
                 catch(Exception ex)
                 {
-                    logger.Error(() => $"{nameof(ShareReceiver)}: {ex}");
+                    logger.Error(() => $"{nameof(RelayReceiver)}: {ex}");
 
                     if(!ct.IsCancellationRequested)
                         Thread.Sleep(5000);
@@ -220,12 +220,13 @@ public class ShareReceiver : BackgroundService
         // extract frames
         var topic = msg[0].ToString(Encoding.UTF8);
         var flags = msg[1].ReadUInt32();
-        var data = msg[2].Read();
+        var type = msg[2].ReadUInt32();
+        var data = msg[3].Read();
 
         // validate
         if(string.IsNullOrEmpty(topic) || !pools.TryGetValue(topic, out var poolContext))
         {
-            logger.Warn(() => $"Received share for pool '{topic}' which is not known locally. Ignoring ...");
+            logger.Warn(() => $"Received relayed data for pool '{topic}' which is not known locally. Ignoring ...");
             return;
         }
 
@@ -236,17 +237,34 @@ public class ShareReceiver : BackgroundService
         }
 
         // TMP FIX
-        if((flags & ShareRelay.WireFormatMask) == 0)
+        if((flags & RelayPublisher.WireFormatMask) == 0)
             flags = BitConverter.ToUInt32(BitConverter.GetBytes(flags).ToNewReverseArray());
 
         // deserialize
-        var wireFormat = (ShareRelay.WireFormat) (flags & ShareRelay.WireFormatMask);
+        var wireFormat = (RelayPublisher.WireFormat) (flags & RelayPublisher.WireFormatMask);
+        var dataType = (RelayPublisher.DataType) (type & RelayPublisher.DataTypeMask);
 
+        switch(dataType)
+        {
+            case RelayPublisher.DataType.Share:
+                ProcessMessageShare(poolContext, url, topic, wireFormat, data);
+                break;
+            case RelayPublisher.DataType.ReportedHashrate:
+                ProcessMessageReportedHashrate(poolContext, url, topic, wireFormat, data);
+                break;
+            default:
+                logger.Error(() => $"Unsupported datatype {dataType} received from {url}/{topic} ");
+                break;
+        }
+    }
+
+    private void ProcessMessageShare(PoolContext poolContext, string url, string topic, RelayPublisher.WireFormat wireFormat, byte[] data)
+    {
         Share share = null;
 
         switch(wireFormat)
         {
-            case ShareRelay.WireFormat.Json:
+            case RelayPublisher.WireFormat.Json:
                 using(var stream = new MemoryStream(data))
                 {
                     using(var reader = new StreamReader(stream, Encoding.UTF8))
@@ -260,7 +278,7 @@ public class ShareReceiver : BackgroundService
 
                 break;
 
-            case ShareRelay.WireFormat.ProtocolBuffers:
+            case RelayPublisher.WireFormat.ProtocolBuffers:
                 using(var stream = new MemoryStream(data))
                 {
                     share = Serializer.Deserialize<Share>(stream);
@@ -312,6 +330,49 @@ public class ShareReceiver : BackgroundService
 
         else
             logger.Info(() => $"External {(!string.IsNullOrEmpty(share.Source) ? $"[{share.Source.ToUpper()}] " : string.Empty)}share accepted: D={Math.Round(share.Difficulty, 4)}");
+    }
+
+
+    private void ProcessMessageReportedHashrate(PoolContext poolContext, string url, string topic, RelayPublisher.WireFormat wireFormat, byte[] data)
+    {
+        ReportedHashrate hashrate = null;
+
+        switch(wireFormat)
+        {
+            case RelayPublisher.WireFormat.Json:
+                using(var stream = new MemoryStream(data))
+                {
+                    using(var reader = new StreamReader(stream, Encoding.UTF8))
+                    {
+                        using(var jreader = new JsonTextReader(reader))
+                        {
+                            hashrate = serializer.Deserialize<ReportedHashrate>(jreader);
+                        }
+                    }
+                }
+
+                break;
+
+            case RelayPublisher.WireFormat.ProtocolBuffers:
+                using(var stream = new MemoryStream(data))
+                {
+                    hashrate = Serializer.Deserialize<ReportedHashrate>(stream);
+                }
+
+                break;
+
+            default:
+                logger.Error(() => $"Unsupported wire format {wireFormat} of reported hashrate received from {url}/{topic} ");
+                break;
+        }
+
+        if(hashrate == null)
+        {
+            logger.Error(() => $"Unable to deserialize reported hashrate received from {url}/{topic}");
+            return;
+        }
+
+        messageBus.SendMessage(new StratumReportedHashrate(null, hashrate));
     }
 
     protected override async Task ExecuteAsync(CancellationToken ct)
