@@ -12,9 +12,9 @@ public static class FormatUtil
 
         var i = 0;
 
-        while (hashrate > 1024 && i < hashrateUnits.Length - 1)
+        while (hashrate > 1000 && i < hashrateUnits.Length - 1)
         {
-            hashrate /= 1024;
+            hashrate /= 1000;
             i++;
         }
 
