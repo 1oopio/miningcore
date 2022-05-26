@@ -25,7 +25,10 @@ public:
 	 * @param key 256-bit (32 byte) key
 	 * @param iv 64-bit initialization vector
 	 */
-    Salsa20(const void* key, const void* iv);
+	Salsa20(const void *key,const void *iv)
+	{
+		init(key,iv);
+	}
 
 	/**
 	 * Initialize cipher

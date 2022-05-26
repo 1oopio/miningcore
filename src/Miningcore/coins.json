@@ -34,6 +34,14 @@
         "explorerBlockLink": "https://blockchain.babycoin.dev/block/$height$",
         "explorerTxLink": "https://blockchain.babycoin.dev/tx/{0}"
     },
+    "dero": {
+        "name": "Dero",
+        "symbol": "DERO",
+        "family": "dero",
+        "smallestUnit": 100000,
+        "explorerBlockLink": "https://explorer.dero.io/block/$height$",
+        "explorerTxLink": "https://explorer.dero.io/tx/{0}"
+    },
     "auroracoin-scrypt": {
         "name": "Auroracoin-Scrypt",
         "canonicalName": "Auroracoin",

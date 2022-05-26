@@ -27,11 +27,6 @@ static const _s20sseconsts _S20SSECONSTANTS;
 
 namespace ZeroTier {
 
-Salsa20::Salsa20(const void* key, const void* iv)
-{
-    init(key, iv);
-}
-
 void Salsa20::init(const void *key,const void *iv)
 {
 	const uint32_t *const k = (const uint32_t *)key;
