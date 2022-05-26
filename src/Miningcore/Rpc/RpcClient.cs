@@ -46,6 +46,7 @@ public class RpcClient
     private readonly JsonSerializer serializer;
     private readonly IMessageBus messageBus;
     private readonly string poolId;
+    private bool hideCharSetFromContentType = false;
 
     private static readonly HttpClient httpClient = new(new HttpClientHandler
     {
@@ -55,6 +56,11 @@ public class RpcClient
     });
 
     #region API-Surface
+
+    public void SetHideCharSetFromContentType(bool enabled)
+    {
+        hideCharSetFromContentType = enabled;
+    }
 
     public async Task<RpcResponse<TResponse>> ExecuteAsync<TResponse>(ILogger logger, string method, CancellationToken ct,
         object payload = null, bool throwOnError = false)
@@ -156,6 +162,12 @@ public class RpcClient
             // content
             var json = JsonConvert.SerializeObject(rpcRequest, serializerSettings);
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            // Some nodes do not like charset within content type
+            if(hideCharSetFromContentType)
+            {
+                request.Content.Headers.ContentType.CharSet = null;
+            }
 
             // auth header
             if(!string.IsNullOrEmpty(endPoint.User))

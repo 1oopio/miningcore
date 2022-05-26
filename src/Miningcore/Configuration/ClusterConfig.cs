@@ -30,6 +30,9 @@ public enum CoinFamily
 
     [EnumMember(Value = "ergo")]
     Ergo,
+
+    [EnumMember(Value = "dero")]
+    Dero,
 }
 
 public abstract partial class CoinTemplate
@@ -132,6 +135,7 @@ public abstract partial class CoinTemplate
         {CoinFamily.Cryptonote, typeof(CryptonoteCoinTemplate)},
         {CoinFamily.Ethereum, typeof(EthereumCoinTemplate)},
         {CoinFamily.Ergo, typeof(ErgoCoinTemplate)},
+        {CoinFamily.Dero, typeof(DeroCoinTemplate)},
     };
 }
 
@@ -488,6 +492,21 @@ public partial class EthereumCoinTemplate : CoinTemplate
 
 public partial class ErgoCoinTemplate : CoinTemplate
 {
+}
+
+public partial class DeroCoinTemplate : CoinTemplate
+{
+    /// <summary>
+    /// Smallest unit for Blockreward formatting
+    /// </summary>
+    public decimal SmallestUnit { get; set; }
+
+    /// <summary>
+    /// Fraction of block reward, the pool really gets to keep
+    /// </summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
+    [DefaultValue(1.0d)]
+    public decimal BlockrewardMultiplier { get; set; }
 }
 
 #endregion // Coin Definitions
