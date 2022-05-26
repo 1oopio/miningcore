@@ -188,6 +188,18 @@ public partial class ErgoCoinTemplate
     #endregion
 }
 
+public partial class DeroCoinTemplate
+{
+    #region Overrides of CoinTemplate
+
+    public override string GetAlgorithmName()
+    {
+        return "AstroBWT/v2";
+    }
+
+    #endregion
+}
+
 public partial class PoolConfig
 {
     /// <summary>

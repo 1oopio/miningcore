@@ -33,6 +33,9 @@ public static unsafe class Cryptonight
     [DllImport("libcryptonight", EntryPoint = "argon_export", CallingConvention = CallingConvention.Cdecl)]
     private static extern bool argon(byte* input, int inputLength, void* output, Algorithm algo, ulong height, IntPtr ctx);
 
+    [DllImport("libcryptonight", EntryPoint = "astrobwt_export", CallingConvention = CallingConvention.Cdecl)]
+    private static extern bool astrobwt(byte* input, int inputLength, void* output, Algorithm algo, ulong height, IntPtr ctx);
+
     public enum Algorithm
     {
         INVALID         = 0,
@@ -72,7 +75,8 @@ public static unsafe class Cryptonight
         AR2_CHUKWA      = 0x61130000,   // "argon2/chukwa"    Argon2id (Chukwa).
         AR2_CHUKWA_V2   = 0x61140000,   // "argon2/chukwav2"  Argon2id (Chukwa v2).
         AR2_WRKZ        = 0x61120000,   // "argon2/wrkz"      Argon2id (WRKZ)
-        // ASTROBWT_DERO   = 0x41000000,   // "astrobwt"         AstroBWT (Dero)
+        ASTROBWT_DERO   = 0x41000000,   // "astrobwt"         AstroBWT (Dero)
+        ASTROBWT_DERO_2 = 0x41110000,   // "astrobwt/v2"      AstroBWT (Dero HE)
         // KAWPOW_RVN      = 0x6b0f0000,   // "kawpow/rvn"       KawPow (RVN)
 
         CN_GPU          = 0x631500ff,   // "cn/gpu"           CryptoNight-GPU (Ryo).
@@ -123,6 +127,12 @@ public static unsafe class Cryptonight
         Algorithm.AR2_WRKZ,
         Algorithm.AR2_CHUKWA,
         Algorithm.AR2_CHUKWA_V2,
+    };
+
+    private static readonly HashSet<Algorithm> validAstrobwtAlgos = new()
+    {
+        Algorithm.ASTROBWT_DERO,
+        Algorithm.ASTROBWT_DERO_2,
     };
 
     #region Context managment
@@ -278,6 +288,30 @@ public static unsafe class Cryptonight
                 using(var lease = new ContextLease())
                 {
                     var success = argon(input, data.Length, output, algo, height, lease.Context.Handle);
+                    Debug.Assert(success);
+
+                    messageBus?.SendTelemetry(algo.ToString(), TelemetryCategory.Hash, sw.Elapsed, true);
+                }
+            }
+        }
+    }
+
+    public static void AstrobwtHash(ReadOnlySpan<byte> data, Span<byte> result, Algorithm algo, ulong height)
+    {
+        Contract.Requires<ArgumentException>(result.Length >= 32);
+        Contract.Requires<ArgumentException>(validAstrobwtAlgos.Contains(algo), $"{nameof(algo)} does not fall into valid range");
+
+        var sw = Stopwatch.StartNew();
+
+        fixed (byte* input = data)
+        {
+            fixed (byte* output = result)
+            {
+                using(var lease = new ContextLease())
+                {
+                    // const uint8_t * input, size_t input_length, char* output, const int algo, const uint64_t height, cryptonight_ctx*ctx
+
+                    var success = astrobwt(input, data.Length, output, algo, height, lease.Context.Handle);
                     Debug.Assert(success);
 
                     messageBus?.SendTelemetry(algo.ToString(), TelemetryCategory.Hash, sw.Elapsed, true);

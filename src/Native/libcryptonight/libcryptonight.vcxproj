@@ -190,6 +190,9 @@
     <ClInclude Include="xmrig\3rdparty\argon2\lib\impl-select.h" />
     <ClInclude Include="xmrig\base\crypto\keccak.h" />
     <ClInclude Include="xmrig\base\crypto\sha3.h" />
+    <ClInclude Include="xmrig\crypto\astrobwt\AstroBWT.h" />
+    <ClInclude Include="xmrig\crypto\astrobwt\Salsa20.hpp" />
+    <ClInclude Include="xmrig\crypto\astrobwt\sort_indices2.h" />
     <ClInclude Include="xmrig\crypto\cn\CnCtx.h" />
     <ClInclude Include="xmrig\crypto\cn\CnHash.h" />
     <ClInclude Include="xmrig\crypto\cn\c_blake256.h" />
@@ -240,6 +243,9 @@
     <ClCompile Include="xmrig\3rdparty\argon2\lib\impl-select.c" />
     <ClCompile Include="xmrig\base\crypto\keccak.cpp" />
     <ClCompile Include="xmrig\base\crypto\sha3.cpp" />
+    <ClCompile Include="xmrig\crypto\astrobwt\AstroBWT.cpp" />
+    <ClCompile Include="xmrig\crypto\astrobwt\Salsa20.cpp" />
+    <ClCompile Include="xmrig\crypto\astrobwt\sort_indices2.cpp" />
     <ClCompile Include="xmrig\crypto\cn\CnCtx.cpp" />
     <ClCompile Include="xmrig\crypto\cn\CnHash.cpp" />
     <ClCompile Include="xmrig\crypto\cn\c_blake256.c" />
@@ -272,6 +278,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Makefile" />
+    <MASM Include="xmrig\crypto\astrobwt\sha3_256_avx2.asm" />
     <MASM Include="xmrig\crypto\cn\asm\cn_main_loop.asm">
       <FileType>Document</FileType>
     </MASM>
@@ -284,6 +291,9 @@
     <MASM Include="xmrig\crypto\cn\asm\win64\CryptonightR_template.asm">
       <FileType>Document</FileType>
     </MASM>
+    <None Include="xmrig\crypto\astrobwt\sha3_256_avx2.inc" />
+    <None Include="xmrig\crypto\astrobwt\sha3_256_avx2.S" />
+    <None Include="xmrig\crypto\astrobwt\sha3_256_keccakf1600_avx2.inc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

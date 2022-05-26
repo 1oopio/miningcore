@@ -114,12 +114,21 @@ static xmrig::cn_hash_fun get_cn_pico_fn(const int algo) {
     default: return FNA(CN_PICO_0);
     }
 }
+
 static xmrig::cn_hash_fun get_argon2_fn(const int algo) {
     switch (algo) {
     case xmrig::Algorithm::AR2_CHUKWA:  return FN(AR2_CHUKWA);
     case xmrig::Algorithm::AR2_WRKZ:  return FN(AR2_WRKZ);
     case xmrig::Algorithm::AR2_CHUKWA_V2:  return FN(AR2_CHUKWA_V2);
     default: return FN(AR2_CHUKWA);
+    }
+}
+
+static xmrig::cn_hash_fun get_astrobwt_fn(const int algo) {
+    switch (algo) {
+    case xmrig::Algorithm::ASTROBWT_DERO:  return FN(ASTROBWT_DERO);
+    case xmrig::Algorithm::ASTROBWT_DERO_2:  return FN(ASTROBWT_DERO_2);
+    default: return FN(ASTROBWT_DERO);
     }
 }
 
@@ -210,6 +219,22 @@ extern "C" MODULE_API bool argon_export(const uint8_t * input, size_t input_leng
         return false;
 
     const xmrig::cn_hash_fun fn = get_argon2_fn(algo);
+
+    fn(input, input_length, reinterpret_cast<uint8_t*>(output), &ctx, height);
+
+    return true;
+}
+
+extern "C" MODULE_API bool astrobwt_export(const uint8_t * input, size_t input_length,
+    char* output, const int algo, const uint64_t height, cryptonight_ctx* ctx)
+{
+    if (input_length == 0)
+        return false;
+
+    if (ctx == nullptr || input == nullptr)
+        return false;
+
+    const xmrig::cn_hash_fun fn = get_astrobwt_fn(algo);
 
     fn(input, input_length, reinterpret_cast<uint8_t*>(output), &ctx, height);
 

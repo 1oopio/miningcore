@@ -157,6 +157,9 @@ public class RpcClient
             var json = JsonConvert.SerializeObject(rpcRequest, serializerSettings);
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            // FIXME v
+            request.Content.Headers.ContentType.CharSet = null;
+
             // auth header
             if(!string.IsNullOrEmpty(endPoint.User))
             {
