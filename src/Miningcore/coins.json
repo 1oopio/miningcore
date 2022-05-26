@@ -742,6 +742,16 @@
         "explorerAccountLink": "https://chainz.cryptoid.info/dash/address.dws?{0}.htm"
     },
 
+
+    "dero": {
+        "name": "Dero",
+        "symbol": "DERO",
+        "family": "dero",
+        "smallestUnit": 100000,
+        "explorerBlockLink": "https://explorer.dero.io/block/$height$",
+        "explorerTxLink": "https://explorer.dero.io/tx/{0}"
+    },
+
     "digibyte-sha256": {
         "name": "Digibyte Sha256",
         "canonicalName": "Digibyte",

@@ -45,6 +45,8 @@ OBJECTS = exports.o \
 	xmrig/crypto/astrobwt/AstroBWT.o \
 	xmrig/crypto/astrobwt/Salsa20.o \
 	xmrig/crypto/astrobwt/salsa20_ref/salsa20.o \
+	xmrig/crypto/astrobwt/sort_indices2.o \
+	xmrig/crypto/astrobwt/sha3_256_avx2.o \
 	\
 	xmrig/crypto/ghostrider/sph_blake.o \
 	xmrig/crypto/ghostrider/sph_bmw.o \

@@ -6,6 +6,8 @@ using Miningcore.Blockchain.Bitcoin;
 using Miningcore.Blockchain.Cryptonote;
 using Miningcore.Blockchain.Equihash;
 using Miningcore.Blockchain.Ethereum;
+using Miningcore.Blockchain.Ergo;
+using Miningcore.Blockchain.Dero;
 using Miningcore.Configuration;
 using Miningcore.Crypto;
 using Miningcore.Crypto.Hashing.Equihash;
@@ -20,7 +22,6 @@ using Newtonsoft.Json.Serialization;
 using Module = Autofac.Module;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IO;
-using Miningcore.Blockchain.Ergo;
 using Miningcore.Nicehash;
 using Miningcore.Pushover;
 
@@ -157,7 +158,6 @@ public class AutofacModule : Module
         // Ethereum
 
         builder.RegisterType<EthereumJobManager>();
-        builder.RegisterType<EthereumJobManager>();
 
         //////////////////////
         // ZCash
@@ -167,8 +167,12 @@ public class AutofacModule : Module
         //////////////////////
         // Ergo
 
-        builder.RegisterType<EquihashJobManager>();
         builder.RegisterType<ErgoJobManager>();
+
+        //////////////////////
+        // Dero
+
+        builder.RegisterType<DeroJobManager>();
 
         base.Load(builder);
     }
