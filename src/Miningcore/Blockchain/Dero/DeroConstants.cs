@@ -14,6 +14,8 @@ public static class DeroConstants
 {
     public const string WalletDaemonCategory = "wallet";
 
+    public const string GetworkDaemonCategory = "getwork";
+
     public const string DaemonRpcLocation = "json_rpc";
 
     public static readonly Regex RegexValidNonce = new("^[0-9a-f]{8,24}$", RegexOptions.Compiled);
