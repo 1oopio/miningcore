@@ -127,6 +127,13 @@ public class RpcClient
             .RefCount();
     }
 
+    public IObservable<byte[]> WebsocketSubscribe(ILogger logger, CancellationToken ct, DaemonEndpointConfig endPoint, JsonSerializerSettings payloadJsonSerializerSettings = null)
+    {
+        return WebsocketSubscribeEndpoint(logger, ct, endPoint, null, null, payloadJsonSerializerSettings)
+            .Publish()
+            .RefCount();
+    }
+
     public IObservable<ZMessage> ZmqSubscribe(ILogger logger, CancellationToken ct, Dictionary<DaemonEndpointConfig, (string Socket, string Topic)> portMap)
     {
         return portMap.Keys
@@ -287,13 +294,16 @@ public class RpcClient
                                 logger.Debug(() => $"Establishing WebSocket connection to {uri}");
                                 await client.ConnectAsync(uri, cts.Token);
 
-                                // subscribe
-                                var request = new JsonRpcRequest(method, payload, GetRequestId());
-                                var json = JsonConvert.SerializeObject(request, payloadJsonSerializerSettings);
-                                var requestData = new ArraySegment<byte>(Encoding.UTF8.GetBytes(json));
+                                if(method != null)
+                                { 
+                                    // subscribe
+                                    var request = new JsonRpcRequest(method, payload, GetRequestId());
+                                    var json = JsonConvert.SerializeObject(request, payloadJsonSerializerSettings);
+                                    var requestData = new ArraySegment<byte>(Encoding.UTF8.GetBytes(json));
 
-                                logger.Debug(() => $"Sending WebSocket subscription request to {uri}");
-                                await client.SendAsync(requestData, WebSocketMessageType.Text, true, cts.Token);
+                                    logger.Debug(() => $"Sending WebSocket subscription request to {uri}");
+                                    await client.SendAsync(requestData, WebSocketMessageType.Text, true, cts.Token);
+                                }
 
                                 // stream response
                                 while(!cts.IsCancellationRequested && client.State == WebSocketState.Open)

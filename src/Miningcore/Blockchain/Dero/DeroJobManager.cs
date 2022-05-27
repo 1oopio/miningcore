@@ -7,7 +7,6 @@ using Miningcore.Blockchain.Dero.DaemonResponses;
 using Miningcore.Blockchain.Dero.StratumRequests;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
-using Miningcore.JsonRpc;
 using Miningcore.Messaging;
 using Miningcore.Mining;
 using Miningcore.Notifications.Messages;
@@ -19,6 +18,7 @@ using Newtonsoft.Json;
 using NLog;
 using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
+using System.Text;
 
 namespace Miningcore.Blockchain.Dero;
 
@@ -38,7 +38,9 @@ public class DeroJobManager : JobManagerBase<DeroJob>
     }
 
     private DaemonEndpointConfig[] daemonEndpoints;
+    private DaemonEndpointConfig[] getworkEndpoints;
     private RpcClient rpc;
+    private RpcClient getworkRpc;
     private RpcClient walletRpc;
     private readonly IMasterClock clock;
     private DeroNetworkType networkType;
@@ -126,9 +128,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
     private RpcResponse<GetBlockTemplateResponse> GetBlockTemplateFromJson(string json)
     {
-        var result = JsonConvert.DeserializeObject<JsonRpcResponse>(json);
-
-        return new RpcResponse<GetBlockTemplateResponse>(result.ResultAs<GetBlockTemplateResponse>());
+        return new RpcResponse<GetBlockTemplateResponse>(JsonConvert.DeserializeObject<GetBlockTemplateResponse>(json));
     }
 
     private async Task ShowDaemonSyncProgressAsync(CancellationToken ct)
@@ -225,6 +225,17 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         // extract standard daemon endpoints
         daemonEndpoints = pc.Daemons
             .Where(x => string.IsNullOrEmpty(x.Category))
+            .Select(x =>
+            {
+                if(string.IsNullOrEmpty(x.HttpPath))
+                    x.HttpPath = DeroConstants.DaemonRpcLocation;
+
+                return x;
+            })
+            .ToArray();
+
+        getworkEndpoints = pc.Daemons
+            .Where(x => x.Category?.ToLower() == DeroConstants.GetworkDaemonCategory)
             .Select(x =>
             {
                 if(string.IsNullOrEmpty(x.HttpPath))
@@ -402,6 +413,11 @@ public class DeroJobManager : JobManagerBase<DeroJob>
             walletRpc = new RpcClient(walletDaemonEndpoints.First(), jsonSerializerSettings, messageBus, poolConfig.Id);
             walletRpc.SetHideCharSetFromContentType(true);
         }
+
+        if(getworkEndpoints.Length > 0)
+        {
+            getworkRpc = new RpcClient(getworkEndpoints.First(), jsonSerializerSettings, messageBus, poolConfig.Id);
+        }
     }
 
     protected override async Task<bool> AreDaemonsHealthyAsync(CancellationToken ct)
@@ -515,7 +531,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         SetupJobUpdates(ct);
     }
 
-    protected virtual void SetupJobUpdates(CancellationToken ct)
+    protected virtual async void SetupJobUpdates(CancellationToken ct)
     {
         var blockSubmission = blockFoundSubject.Synchronize();
         var pollTimerRestart = blockFoundSubject.Synchronize();
@@ -535,13 +551,36 @@ public class DeroJobManager : JobManagerBase<DeroJob>
                 .Select(_ => (JobRefreshBy.Poll, (string) null))
                 .Repeat());
         }
-
         else
         {
             // get initial blocktemplate
             triggers.Add(Observable.Interval(TimeSpan.FromMilliseconds(1000))
                 .Select(_ => (JobRefreshBy.Initial, (string) null))
                 .TakeWhile(_ => !hasInitialBlockTemplate));
+        }
+
+        // If getwork endpoints are declared use first one
+        if(getworkEndpoints.Length > 0)
+        {
+            logger.Info(() => $"Subscribing to WebSocket {(getworkEndpoints.First().Ssl ? "wss" : "ws")}://{getworkEndpoints.First().Host}:{getworkEndpoints.First().Port}");
+
+            var wsEndpointConfig = new DaemonEndpointConfig
+            {
+                Host = getworkEndpoints.First().Host,
+                Port = getworkEndpoints.First().Port,
+                HttpPath = "/ws/" + poolConfig.Address,
+                Ssl = getworkEndpoints.First().Ssl,
+            };
+
+            var getWorkObs = rpc.WebsocketSubscribe(logger, ct, wsEndpointConfig)
+                .Publish()
+                .RefCount();
+
+            var websocketNotify = getWorkObs.Where(x => x != null)
+                .Publish()
+                .RefCount();
+
+            triggers.Add(websocketNotify.Select(x => (JobRefreshBy.WebSocket, Encoding.UTF8.GetString(x))));
         }
 
         Blocks = triggers.Merge()

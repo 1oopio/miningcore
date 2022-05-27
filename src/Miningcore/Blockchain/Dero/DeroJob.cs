@@ -127,7 +127,7 @@ public class DeroJob
 
         // check difficulty
         var blockDiff = BlockTemplate.Difficulty;
-        if(MHighDiff)
+        if(MHighDiff && BlockTemplate.Blob != null)
         {
             blockDiff *= 9;
         }
@@ -168,7 +168,7 @@ public class DeroJob
             result.IsBlockCandidate = true;
 
             // Probable block hash, will be overwritten, once submit was successful
-            result.BlockHash = BlockTemplate.Blob.HexToByteArray().AsSpan().Slice(83, 32).ToHexString();
+            result.BlockHash = headerHashString;
         }
 
         return (result, blobString);
