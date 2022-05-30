@@ -219,7 +219,7 @@ public class DeroPool : PoolBase
 
     private async Task OnNewJobAsync()
     {
-        logger.Info(() => "Broadcasting jobs");
+        logger.Debug(() => "Broadcasting jobs");
 
         await Guard(() => ForEachMinerAsync(async (connection, ct) =>
         {

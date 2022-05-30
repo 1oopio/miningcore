@@ -295,10 +295,13 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         var job = currentJob;
         if(workerJob.Height != job?.BlockTemplate.Height)
             throw new StratumException(StratumError.MinusOne, "block expired");
+
+        /*
         if(workerJob.JobId != job?.BlockTemplate.JobId)
             throw new StratumException(StratumError.MinusOne, "job expired");
         if(workerJob.Blob[..64] != job?.BlockTemplate.HashingBlob[..64])
             throw new StratumException(StratumError.MinusOne, "mini block expired");
+        */
 
         // validate & process
         var (share, blockHex) = job.ProcessShare(workerJob, request.Nonce, request.Result, BlockchainStats.NetworkDifficulty);
