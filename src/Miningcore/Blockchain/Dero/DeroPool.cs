@@ -8,13 +8,11 @@ using Microsoft.IO;
 using Miningcore.Blockchain.Dero.StratumRequests;
 using Miningcore.Blockchain.Dero.StratumResponses;
 using Miningcore.Configuration;
-using Miningcore.Extensions;
 using Miningcore.JsonRpc;
 using Miningcore.Messaging;
 using Miningcore.Mining;
 using Miningcore.Nicehash;
 using Miningcore.Notifications.Messages;
-using Miningcore.Payments;
 using Miningcore.Persistence;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Stratum;
@@ -129,6 +127,41 @@ public class DeroPool : PoolBase
         }
 
         return result;
+    }
+
+    private async Task OnSubmitHashrate(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
+    {
+        var request = tsRequest.Value;
+        var context = connection.ContextAs<DeroWorkerContext>();
+
+        // validate worker
+        if(!context.IsAuthorized)
+            throw new StratumException(StratumError.UnauthorizedWorker, "unauthorized worker");
+        if(!context.IsSubscribed)
+            throw new StratumException(StratumError.NotSubscribed, "not subscribed");
+
+        // recognize activity
+        context.LastActivity = clock.Now;
+
+        await connection.RespondAsync(true, request.Id);
+
+        var hashrateRequest = request.ParamsAs<DeroSubmitHashrateRequest>();
+
+        var lastAge = clock.Now - context.Stats.LastReportedHashrate;
+        context.Stats.ReportedHashrate = hashrateRequest.Hashrate;
+
+        if(lastAge > reportedHashrateInterval)
+        {
+            context.Stats.LastReportedHashrate = clock.Now;
+            ReportedHashrate reported = new ReportedHashrate
+            {
+                PoolId = poolConfig.Id,
+                Miner = context.Miner,
+                Worker = context.Worker,
+                Hashrate = hashrateRequest.Hashrate
+            };
+            messageBus.SendMessage(new StratumReportedHashrate(connection, reported));
+        }
     }
 
     private async Task OnSubmitAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
@@ -289,6 +322,10 @@ public class DeroPool : PoolBase
 
                 case DeroStratumMethods.Submit:
                     await OnSubmitAsync(connection, tsRequest, ct);
+                    break;
+
+                case DeroStratumMethods.ReportHashrate:
+                    await OnSubmitHashrate(connection, tsRequest, ct);
                     break;
 
                 case DeroStratumMethods.KeepAlive:

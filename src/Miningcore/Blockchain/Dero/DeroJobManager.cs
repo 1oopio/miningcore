@@ -171,7 +171,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         }
     }
 
-    private async Task<(bool, string)> SubmitBlockAsync(Share share, string jobId, string blobHex)
+    private async Task<string> SubmitBlockAsync(Share share, string jobId, string blobHex)
     {
         var request = new SubmitBlockRequest
         {
@@ -185,17 +185,20 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         {
             var error = response.Error?.Message ?? response.Response?.Status;
 
-            logger.Warn(() => $"Block {share.BlockHeight} [{share.BlockHash[..6]}] submission failed with: {error}");
+            logger.Warn(() => $"Block {share.BlockHeight} submission failed with: {error}");
             messageBus.SendMessage(new AdminNotification("Block submission failed", $"Pool {poolConfig.Id} {(!string.IsNullOrEmpty(share.Source) ? $"[{share.Source.ToUpper()}] " : string.Empty)}failed to submit block {share.BlockHeight}: {error}"));
-            return (false, error);
+            return error;
         }
+
+        share.IsBlockCandidate = !response.Response.mini;
 
         if (!response.Response.mini)
         {
+            share.BlockHash = response.Response?.BlockId;
             logger.Info(() => $"Block {share.BlockHeight} [{share.BlockHash[..6]}] submission done");
         }
 
-        return (!response.Response.mini, null);
+        return null;
     }
 
     #region API-Surface
@@ -296,13 +299,6 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         if(workerJob.Height != job?.BlockTemplate.Height)
             throw new StratumException(StratumError.MinusOne, "block expired");
 
-        /*
-        if(workerJob.JobId != job?.BlockTemplate.JobId)
-            throw new StratumException(StratumError.MinusOne, "job expired");
-        if(workerJob.Blob[..64] != job?.BlockTemplate.HashingBlob[..64])
-            throw new StratumException(StratumError.MinusOne, "mini block expired");
-        */
-
         // validate & process
         var (share, blockHex) = job.ProcessShare(workerJob, request.Nonce, request.Result, BlockchainStats.NetworkDifficulty);
 
@@ -318,9 +314,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
                 logger.Info(() => $"Submitting mini block {share.BlockHeight} [{share.BlockHash[..6]}]");
             }
 
-            var (candidate, error) = await SubmitBlockAsync(share, workerJob.JobId, blockHex);
-
-            share.IsBlockCandidate = candidate;
+            var error = await SubmitBlockAsync(share, workerJob.JobId, blockHex);
 
             if (error != null)
             {

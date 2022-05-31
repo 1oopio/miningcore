@@ -132,7 +132,7 @@ public class DeroJob
         var headerValue = headerHash.ToBigInteger();
         var shareDiff = (double) new BigRational(DeroConstants.Diff1b, headerValue);
         var ratio = shareDiff / networkDiff;
-        var isBlockCandidate = shareDiff >= BlockTemplate.Difficulty;
+        var isBlockCandidate = shareDiff >= workerJob.Difficulty;
 
         // test if share meets at least workers current difficulty
         if(!isBlockCandidate && ratio < 0.99)
@@ -142,13 +142,14 @@ public class DeroJob
 
         var result = new Share
         {
-            // For some reason the template height is higher than the actual height, once its became a block. Will be updated once the block is confirmed
-            BlockHeight = BlockTemplate.Height - 1,
+            BlockHeight = BlockTemplate.Height,
         };
 
         if(isBlockCandidate)
         {
             result.IsBlockCandidate = true;
+
+            // Probable block hash, will be overwritten, once submit was successful
             result.BlockHash = BlockTemplate.Blob.HexToByteArray().AsSpan().Slice(83, 32).ToHexString();
         }
 

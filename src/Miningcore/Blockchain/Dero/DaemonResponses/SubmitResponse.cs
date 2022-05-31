@@ -17,6 +17,12 @@ public class SubmitResponse
     public string MiniBlockId { get; set; }
 
     /// <summary>
+    /// Block id
+    /// </summary>
+    [JsonProperty("blid")]
+    public string BlockId { get; set; }
+
+    /// <summary>
     /// Is a mini or a real block
     /// </summary>
     public bool mini { get; set; }

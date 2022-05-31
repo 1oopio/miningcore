@@ -21,4 +21,9 @@ public class DeroStratumMethods
     /// Keep alive request
     /// </summary>
     public const string KeepAlive = "keepalived";
+
+    /// <summary>
+    /// Miners reported hashrate
+    /// </summary>
+    public const string ReportHashrate = "reported_hashrate";
 }
