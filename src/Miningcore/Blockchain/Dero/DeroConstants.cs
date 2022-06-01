@@ -38,6 +38,7 @@ public static class DeroCommands
     public const string SubmitBlock = "DERO.SubmitBlock";
     public const string GetBlockHeaderByHash = "DERO.GetBlockHeaderByHash";
     public const string GetBlockHeaderByHeight = "DERO.GetBlockHeaderByTopoHeight";
+    public const string GetEncryptedBalance = "DERO.GetEncryptedBalance";
 }
 
 public static class DeroWalletCommands

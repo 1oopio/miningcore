@@ -64,7 +64,7 @@ public class DeroPool : PoolBase
         var addressToValidate = context.Miner;
 
         // validate login
-        var result = manager.ValidateAddress(addressToValidate);
+        var result = await manager.ValidateAddress(addressToValidate);
 
         context.IsSubscribed = result;
         context.IsAuthorized = result;

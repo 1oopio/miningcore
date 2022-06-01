@@ -250,7 +250,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         ConfigureDaemons();
     }
 
-    public bool ValidateAddress(string address)
+    public async Task<bool> ValidateAddress(string address)
     {
         if(string.IsNullOrEmpty(address))
             return false;
@@ -266,7 +266,20 @@ public class DeroJobManager : JobManagerBase<DeroJob>
                 if(!address.ToLower().StartsWith("deto"))
                     return false;
                 break;
+        }
 
+        var request = new GetEncryptedBalanceRequest
+        {
+            Address = address,
+        };
+
+        var response = await rpc.ExecuteAsync<GetEncryptedBalanceResponse>(logger, DeroCommands.GetEncryptedBalance, CancellationToken.None, request);
+
+        if(response.Error != null || response?.Response?.Status != "OK")
+        {
+            var error = response.Error?.Message ?? response.Response?.Status;
+
+            throw new StratumException(StratumError.UnauthorizedWorker, error);
         }
 
         return true;
@@ -379,7 +392,16 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         if(clusterConfig.PaymentProcessing?.Enabled == true && poolConfig.PaymentProcessing?.Enabled == true)
         {
             // test wallet daemons
-            var responses2 = await walletRpc.ExecuteAsync<object>(logger, DeroWalletCommands.GetAddress, ct);
+            var responses2 = await walletRpc.ExecuteAsync<GetAddressResponse>(logger, DeroWalletCommands.GetAddress, ct);
+
+            if (responses2.Response != null)
+            {
+                if (responses2.Response.Address != poolConfig.Address)
+                {
+                    logger.Warn(() => $"Pool address in wallet differs from configuration! ${poolConfig.Address} vs ${responses2.Response.Address}");
+                    return false;
+                }
+            }
 
             return responses2.Error == null;
         }
