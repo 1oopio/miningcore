@@ -297,11 +297,15 @@ public class DeroPayoutHandler : PayoutHandlerBase,
         var coin = poolConfig.Template.As<DeroCoinTemplate>();
 
 #if !DEBUG // ensure we have peers
+            var requiredConnections = 4;
+            if (networkType == DeroNetworkType.Test)
+               requiredConnections = 1;
+
             var infoResponse = await rpcClient.ExecuteAsync<GetInfoResponse>(logger, CNC.GetInfo, ct);
             if (infoResponse.Error != null || infoResponse.Response == null ||
-                infoResponse.Response.IncomingConnectionsCount + infoResponse.Response.OutgoingConnectionsCount < 3)
+                infoResponse.Response.IncomingConnectionsCount + infoResponse.Response.OutgoingConnectionsCount < requiredConnections)
             {
-                logger.Warn(() => $"[{LogCategory}] Payout aborted. Not enough peers (4 required)");
+                logger.Warn(() => $"[{LogCategory}] Payout aborted. Not enough peers ({requiredConnections} required)");
                 return;
             }
 #endif
@@ -322,14 +326,14 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
                     case DeroNetworkType.Test:
                         if(!x.Address.ToLower().StartsWith("deto"))
-                        { 
+                        {
                             logger.Warn(() => $"[{LogCategory}] Excluding payment to invalid address: {x.Address}");
                             return false;
                         }
 
                         break;
                 }
-  
+
                 return true;
             })
             .ToArray();
