@@ -81,7 +81,7 @@ public class DeroJob
             workerJob.Difficulty = BlockTemplate.Difficulty;
         }
 
-  
+
         workerJob.Height = BlockTemplate.Height;
         workerJob.JobId = BlockTemplate.JobId;
         workerJob.ExtraNonce = (uint) Interlocked.Increment(ref extraNonce);
@@ -103,7 +103,7 @@ public class DeroJob
         if(!DeroConstants.RegexValidNonce.IsMatch(nonce))
             throw new StratumException(StratumError.MinusOne, "malformed nonce");
 
-        
+
         Span<byte> blob = stackalloc byte[48];
         workerJob.Blob[..72].HexToByteArray().CopyTo(blob);
 
@@ -113,7 +113,13 @@ public class DeroJob
         var padLength = padded.Length - bytes.Length;
 
         if(padLength > 0)
+        {
             bytes.CopyTo(padded.Slice(padLength, bytes.Length));
+        }
+        else
+        {
+            bytes.CopyTo(padded);
+        }
 
         padded = padded[..12];
         padded.CopyTo(blob[36..]);
