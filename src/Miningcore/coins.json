@@ -39,7 +39,7 @@
         "symbol": "DERO",
         "family": "dero",
         "smallestUnit": 100000,
-        "explorerBlockLink": "https://explorer.dero.io/block/$hash$",
+        "explorerBlockLink": "https://explorer.dero.io/block/$height$",
         "explorerTxLink": "https://explorer.dero.io/tx/{0}"
     },
     "auroracoin-scrypt": {

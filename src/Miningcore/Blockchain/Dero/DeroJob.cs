@@ -14,11 +14,11 @@ public class DeroJob
     private int extraNonce;
     private readonly Astrobwt2 Astrobwt2 = new Astrobwt2();
 
-    public DeroJob(GetBlockTemplateResponse blockTemplate, string prevHash)
+    public DeroJob(GetBlockTemplateResponse blockTemplate)
     {
         Contract.RequiresNonNull(blockTemplate);
         BlockTemplate = blockTemplate;
-        PrevHash = prevHash;
+        Height = blockTemplate.Height;
 
         byte tmp = blockTemplate.HashingBlob.HexToByteArray()[0];
 
@@ -35,7 +35,7 @@ public class DeroJob
     public bool MFinal { get; }
     public uint MPastCount { get; }
 
-    public string PrevHash { get; }
+    public uint Height { get; }
     public GetBlockTemplateResponse BlockTemplate { get; }
 
     private string EncodeTarget(double difficulty, int size = 8)
@@ -55,8 +55,6 @@ public class DeroJob
 
         return padded.ToHexString();
     }
-
-    // BlockTemplate.HashingBlob[..72] + "000000000000000000000000"
 
     private string EncodeBlob(uint workerExtraNonce)
     {
@@ -80,7 +78,6 @@ public class DeroJob
         {
             workerJob.Difficulty = BlockTemplate.Difficulty;
         }
-
 
         workerJob.Height = BlockTemplate.Height;
         workerJob.JobId = BlockTemplate.JobId;

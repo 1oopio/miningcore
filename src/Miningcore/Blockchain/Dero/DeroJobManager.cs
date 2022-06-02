@@ -59,14 +59,13 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
             var blockTemplate = response.Response;
             var job = currentJob;
-            var newHash = blockTemplate.Blob.HexToByteArray().AsSpan().Slice(83, 32).ToHexString();
 
-            var isNewBlock = job == null || newHash != job.PrevHash;
+            var isNewBlock = job == null || blockTemplate.Height != job.Height;
             var isNew = job == null || job.BlockTemplate.HashingBlob[..72] != blockTemplate.HashingBlob[..72];
 
             if(isNew)
             {
-                job = new DeroJob(blockTemplate, newHash);
+                job = new DeroJob(blockTemplate);
                 currentJob = job;
 
                 logger.Debug(() => $"V: {job.MVersion}, HD: {job.MHighDiff}, F: {job.MFinal}, PC: {job.MPastCount}");
@@ -190,7 +189,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
             return error;
         }
 
-        share.IsBlockCandidate = !response.Response.mini;
+        share.IsBlockCandidate = true;
 
         if (!response.Response.mini)
         {
@@ -244,7 +243,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
                 .ToArray();
 
             if(walletDaemonEndpoints.Length == 0)
-                throw new PoolStartupException("Wallet-RPC daemon is not configured (Daemon configuration for monero-pools require an additional entry of category \'wallet' pointing to the wallet daemon)", pc.Id);
+                throw new PoolStartupException("Wallet-RPC daemon is not configured (Daemon configuration for dero-pools require an additional entry of category \'wallet' pointing to the wallet daemon)", pc.Id);
         }
 
         ConfigureDaemons();
@@ -334,13 +333,19 @@ public class DeroJobManager : JobManagerBase<DeroJob>
                 throw new StratumException(StratumError.MinusOne, error);
             }
 
-            if(job.MFinal && share.IsBlockCandidate)
+            if(share.IsBlockCandidate)
             {
-                logger.Info(() => $"Daemon accepted block {share.BlockHeight} [{share.BlockHash[..6]}] submitted by {context.Miner}");
-
-                OnBlockFound();
-
-                share.TransactionConfirmationData = share.BlockHash;
+                if (job.MFinal)
+                { 
+                    logger.Info(() => $"Daemon accepted block {share.BlockHeight} [{share.BlockHash[..6]}] submitted by {context.Miner}");
+                    OnBlockFound();
+                    share.TransactionConfirmationData = share.BlockHash;
+                }
+                else
+                {
+                    share.BlockHash = $"pr{share.BlockHash}";
+                    share.TransactionConfirmationData = $"mb{request.Result}";
+                }
             }
 
             else

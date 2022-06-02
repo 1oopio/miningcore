@@ -220,13 +220,11 @@ public class DeroPool : PoolBase
             logger.Info(() => $"[{connection.ConnectionId}] Share accepted: D={Math.Round(share.Difficulty, 3)}");
 
             // update pool stats
-            if(share.IsBlockCandidate)
+            if(share.TransactionConfirmationData != null)
                 poolStats.LastPoolBlockTime = clock.Now;
 
             // update client stats
             context.Stats.ValidShares++;
-
-            await UpdateVarDiffAsync(connection, false, ct);
         }
 
         catch(StratumException ex)

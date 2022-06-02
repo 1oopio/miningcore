@@ -196,50 +196,82 @@ public class DeroPayoutHandler : PayoutHandlerBase,
         Contract.RequiresNonNull(blocks);
 
         var coin = poolConfig.Template.As<DeroCoinTemplate>();
-        var pageSize = 100;
-        var pageCount = (int) Math.Ceiling(blocks.Length / (double) pageSize);
         var result = new List<Block>();
 
-        for(var i = 0; i < pageCount; i++)
+        var blocksByHeight = blocks.GroupBy(x => x.BlockHeight);
+
+        foreach(var heightBlocks in blocksByHeight)
         {
-            // get a page full of blocks
-            var page = blocks
-                .Skip(i * pageSize)
-                .Take(pageSize)
-                .ToArray();
+            var blockHeight = heightBlocks.Key;
 
-            // NOTE: monerod does not support batch-requests
-            for(var j = 0; j < page.Length; j++)
+            var rpcResult = await rpcClient.ExecuteAsync<GetBlockHeaderResponse>(logger,
+                CNC.GetBlockHeaderByHeight, ct,
+                new GetBlockHeaderByTopoHeightRequest
+                {
+                    TopoHeight = blockHeight
+                });
+
+            if(rpcResult.Error != null)
             {
-                var block = page[j];
+                logger.Debug(() => $"[{LogCategory}] Daemon reports error '{rpcResult.Error.Message}' (Code {rpcResult.Error.Code}) for block {blockHeight}");
+                continue;
+            }
 
-                var rpcResult = await rpcClient.ExecuteAsync<GetBlockHeaderResponse>(logger,
-                    CNC.GetBlockHeaderByHash, ct,
-                    new GetBlockHeaderByHashRequest
+            if(rpcResult.Response?.BlockHeader == null)
+            {
+                logger.Debug(() => $"[{LogCategory}] Daemon returned no header for block {blockHeight}");
+                continue;
+            }
+
+            var blockHeader = rpcResult.Response.BlockHeader;
+
+            decimal blockConfirmedReward = 0;
+
+            if ((blockHeader.Depth >= DeroConstants.PayoutMinBlockConfirmations) && !blockHeader.IsOrphaned)
+            {
+                var request = new GetTransfersRequest
+                {
+                    MinHeight = blockHeight - 1,
+                    MaxHeight = blockHeight + 1,
+                    Coinbase = true,
+                };
+
+                var transfers = await rpcClientWallet.ExecuteAsync<GetTransfersResponse>(logger, DeroWalletCommands.GetTransfers, ct, request);
+
+                if(transfers.Error != null)
+                {
+                    logger.Debug(() => $"[{LogCategory}]Wallet Daemon reports error '{rpcResult.Error.Message}' (Code {rpcResult.Error.Code}) for block {blockHeight}");
+                    continue;
+                }
+
+                if(transfers.Response?.Entries != null)
+                {
+                    var foundTransfer = transfers.Response.Entries.Where(x => x.BlockHash == blockHeader.Hash && x.Coinbase);
+
+                    if(foundTransfer.Count() == 1)
                     {
-                        Hash = block.Hash
-                    });
+                        blockConfirmedReward = (foundTransfer.First().Amount / coin.SmallestUnit) * coin.BlockrewardMultiplier;
 
-                if(rpcResult.Error != null)
-                {
-                    logger.Debug(() => $"[{LogCategory}] Daemon reports error '{rpcResult.Error.Message}' (Code {rpcResult.Error.Code}) for block {block.BlockHeight}");
-                    continue;
+                        logger.Info(() => $"[{LogCategory}] Unlocked block {blockHeight} worth {FormatAmount(blockConfirmedReward)} needs to be split between {heightBlocks.Count()} mini blocks");
+
+                        // Now we need to split the reward between all (mini)blocks
+                        blockConfirmedReward /= heightBlocks.Count();
+                    }
                 }
+            }
 
-                if(rpcResult.Response?.BlockHeader == null)
-                {
-                    logger.Debug(() => $"[{LogCategory}] Daemon returned no header for block {block.BlockHeight}");
-                    continue;
-                }
-
-                var blockHeader = rpcResult.Response.BlockHeader;
-
+            foreach(var block in heightBlocks)
+            {
                 // update progress
                 block.ConfirmationProgress = Math.Min(1.0d, (double) blockHeader.Depth / DeroConstants.PayoutMinBlockConfirmations);
 
                 // update infos
                 block.NetworkDifficulty = blockHeader.Difficulty;
-                block.BlockHeight = blockHeader.Height;
+
+                if(block.TransactionConfirmationData.StartsWith("mb") && block.TransactionConfirmationData.Length == 66)
+                {
+                    block.Hash = blockHeader.Hash;
+                }
 
                 result.Add(block);
 
@@ -260,9 +292,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                 {
                     block.Status = BlockStatus.Confirmed;
                     block.ConfirmationProgress = 1;
-                    block.Reward = (blockHeader.Reward / coin.SmallestUnit) * coin.BlockrewardMultiplier;
-
-                    logger.Info(() => $"[{LogCategory}] Unlocked block {block.BlockHeight} worth {FormatAmount(block.Reward)}");
+                    block.Reward = blockConfirmedReward;
 
                     messageBus.NotifyBlockUnlocked(poolConfig.Id, block, coin);
                 }
