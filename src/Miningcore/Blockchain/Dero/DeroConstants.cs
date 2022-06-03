@@ -27,7 +27,7 @@ public static class DeroConstants
 #if DEBUG
     public const int PayoutMinBlockConfirmations = 2;
 #else
-        public const int PayoutMinBlockConfirmations = 60;
+        public const int PayoutMinBlockConfirmations = 20;
 #endif
 }
 
