@@ -291,7 +291,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                 if(blockHeader.Depth >= DeroConstants.PayoutMinBlockConfirmations)
                 {
                     // We got no reward for the block candidate so its possible a orphaned (mini)block
-                    if (blockConfirmedReward <= 0)
+                    if (blockConfirmedReward == 0)
                     {
                         block.Status = BlockStatus.Orphaned;
                         block.ConfirmationProgress = 0;
