@@ -5,16 +5,17 @@ namespace Miningcore.Blockchain.Dero;
 // FIXME
 public class DeroWorkerJob
 {
-    public DeroWorkerJob(string jobId)
+    public DeroWorkerJob(string jobId, double difficulty)
     {
         Id = jobId;
+        Difficulty = difficulty;
     }
 
     public string Id { get; }
 
     public uint Height { get; set; }
 
-    public long Difficulty { get; set; }
+    public double Difficulty { get; set; }
 
     public string Blob { get; set; }
 

@@ -89,7 +89,7 @@
                 "4090": {
                     "name": "Pool",
                     "listenAddress": "*",
-                    "difficulty": 1,
+                    "difficulty": 250000,
                     "tls": false,
                     "tlsAuto": false
                 }

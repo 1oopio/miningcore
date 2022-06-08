@@ -68,15 +68,13 @@ public class DeroJob
     }
 
 
-    public void PrepareWorkerJob(DeroWorkerJob workerJob)
+    public void PrepareWorkerJob(DeroWorkerJob workerJob, out string blob, out string target)
     {
+        var diff = workerJob.Difficulty;
+
         if(MHighDiff)
         {
-            workerJob.Difficulty = BlockTemplate.Difficulty * 9;
-        }
-        else
-        {
-            workerJob.Difficulty = BlockTemplate.Difficulty;
+            diff *= 9;
         }
 
         workerJob.Height = BlockTemplate.Height;
@@ -86,23 +84,26 @@ public class DeroJob
         if(extraNonce < 0)
             extraNonce = 0;
 
-        workerJob.Target = EncodeTarget(workerJob.Difficulty);
-        workerJob.Blob = EncodeBlob(workerJob.ExtraNonce);
+        blob = EncodeBlob(workerJob.ExtraNonce);
+        target = EncodeTarget(diff);
+
+        workerJob.Blob = blob;
     }
 
-    public (Share Share, string BlobHex) ProcessShare(DeroWorkerJob workerJob, string nonce, string workerHash, double networkDiff)
+    public (Share Share, string BlobHex) ProcessShare(DeroWorkerJob workerJob, string nonce, string workerHash, StratumConnection worker)
     {
         Contract.RequiresNonNull(workerJob);
         Contract.RequiresNonNull(nonce);
         Contract.RequiresNonNull(workerHash);
 
+        var context = worker.ContextAs<DeroWorkerContext>();
+
         // validate nonce
         if(!DeroConstants.RegexValidNonce.IsMatch(nonce))
             throw new StratumException(StratumError.MinusOne, "malformed nonce");
 
-
         Span<byte> blob = stackalloc byte[48];
-        workerJob.Blob[..72].HexToByteArray().CopyTo(blob);
+        workerJob.Blob.HexToByteArray().AsSpan().Slice(0, 36).CopyTo(blob);
 
         var bytes = nonce.HexToByteArray();
 
@@ -132,15 +133,30 @@ public class DeroJob
             throw new StratumException(StratumError.MinusOne, "bad hash");
         }
 
+        // check difficulty
         var headerValue = headerHash.ToBigInteger();
         var shareDiff = (double) new BigRational(DeroConstants.Diff1b, headerValue);
-        var ratio = shareDiff / networkDiff;
-        var isBlockCandidate = shareDiff >= workerJob.Difficulty;
+        var stratumDifficulty = context.Difficulty;
+        var ratio = shareDiff / stratumDifficulty;
+        var isBlockCandidate = shareDiff >= BlockTemplate.Difficulty;
 
         // test if share meets at least workers current difficulty
         if(!isBlockCandidate && ratio < 0.99)
         {
-            throw new StratumException(StratumError.LowDifficultyShare, $"low difficulty share ({shareDiff})");
+            // check if share matched the previous difficulty from before a vardiff retarget
+            if(context.VarDiff?.LastUpdate != null && context.PreviousDifficulty.HasValue)
+            {
+                ratio = shareDiff / context.PreviousDifficulty.Value;
+
+                if(ratio < 0.99)
+                    throw new StratumException(StratumError.LowDifficultyShare, $"low difficulty share ({shareDiff})");
+
+                // use previous difficulty
+                stratumDifficulty = context.PreviousDifficulty.Value;
+            }
+
+            else
+                throw new StratumException(StratumError.LowDifficultyShare, $"low difficulty share ({shareDiff})");
         }
 
         var result = new Share

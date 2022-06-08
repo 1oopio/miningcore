@@ -286,15 +286,18 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
     public BlockchainStats BlockchainStats { get; } = new();
 
-    public void PrepareWorkerJob(DeroWorkerJob workerJob)
+    public void PrepareWorkerJob(DeroWorkerJob workerJob, out string blob, out string target)
     {
+        blob = null;
+        target = null;
+
         var job = currentJob;
 
         if(job != null)
         {
             lock(job)
             {
-                job.PrepareWorkerJob(workerJob);
+                job.PrepareWorkerJob(workerJob, out blob, out target);
             }
         }
     }
@@ -312,7 +315,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
             throw new StratumException(StratumError.MinusOne, "block expired");
 
         // validate & process
-        var (share, blockHex) = job.ProcessShare(workerJob, request.Nonce, request.Result, BlockchainStats.NetworkDifficulty);
+        var (share, blockHex) = job.ProcessShare(workerJob, request.Nonce, request.Result, worker);
 
         // if block candidate, submit & check if accepted by network
         if(share.IsBlockCandidate)

@@ -71,6 +71,37 @@ public class DeroPool : PoolBase
 
         if(context.IsAuthorized)
         {
+            // extract control vars from password
+            var passParts = loginRequest.Password?.Split(PasswordControlVarsSeparator);
+            var staticDiff = GetStaticDiffFromPassparts(passParts);
+
+            // Nicehash support
+            var nicehashDiff = await GetNicehashStaticMinDiff(context, manager.Coin.Name, manager.Coin.GetAlgorithmName());
+
+            if(nicehashDiff.HasValue)
+            {
+                if(!staticDiff.HasValue || nicehashDiff > staticDiff)
+                {
+                    logger.Info(() => $"[{connection.ConnectionId}] Nicehash detected. Using API supplied difficulty of {nicehashDiff.Value}");
+
+                    staticDiff = nicehashDiff;
+                }
+
+                else
+                    logger.Info(() => $"[{connection.ConnectionId}] Nicehash detected. Using miner supplied difficulty of {staticDiff.Value}");
+            }
+
+            // Static diff
+            if(staticDiff.HasValue &&
+               (context.VarDiff != null && staticDiff.Value >= context.VarDiff.Config.MinDiff ||
+                   context.VarDiff == null && staticDiff.Value > context.Difficulty))
+            {
+                context.VarDiff = null; // disable vardiff
+                context.SetDifficulty(staticDiff.Value);
+
+                logger.Info(() => $"[{connection.ConnectionId}] Static difficulty set to {staticDiff.Value}");
+            }
+
             // respond
             var loginResponse = new DeroLoginResponse
             {
@@ -102,20 +133,20 @@ public class DeroPool : PoolBase
     private DeroJobParams CreateWorkerJob(StratumConnection connection)
     {
         var context = connection.ContextAs<DeroWorkerContext>();
-        var job = new DeroWorkerJob(NextJobId());
+        var job = new DeroWorkerJob(NextJobId(), context.Difficulty);
 
-        manager.PrepareWorkerJob(job);
+        manager.PrepareWorkerJob(job, out var blob, out var target);
 
         // should never happen
-        if(string.IsNullOrEmpty(job.Blob))
+        if(string.IsNullOrEmpty(blob) || string.IsNullOrEmpty(blob))
             return null;
 
         var result = new DeroJobParams
         {
             JobId = job.Id,
             Height = job.Height,
-            Blob = job.Blob,
-            Target = job.Target,
+            Blob = blob,
+            Target = target,
             ExtraNonce = "",
             PoolWallet = poolConfig.Address,
         };
@@ -225,6 +256,8 @@ public class DeroPool : PoolBase
 
             // update client stats
             context.Stats.ValidShares++;
+
+            await UpdateVarDiffAsync(connection, false, ct);
         }
 
         catch(StratumException ex)
