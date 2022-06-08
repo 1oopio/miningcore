@@ -290,9 +290,19 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                 // matured and spendable?
                 if(blockHeader.Depth >= DeroConstants.PayoutMinBlockConfirmations)
                 {
-                    block.Status = BlockStatus.Confirmed;
-                    block.ConfirmationProgress = 1;
-                    block.Reward = blockConfirmedReward;
+                    // We got no reward for the block candidate so its possible a orphaned (mini)block
+                    if (blockConfirmedReward <= 0)
+                    {
+                        block.Status = BlockStatus.Orphaned;
+                        block.ConfirmationProgress = 0;
+                        block.Reward = 0;
+                    }
+                    else
+                    {
+                        block.Status = BlockStatus.Confirmed;
+                        block.ConfirmationProgress = 1;
+                        block.Reward = blockConfirmedReward;
+                    }
 
                     messageBus.NotifyBlockUnlocked(poolConfig.Id, block, coin);
                 }
