@@ -134,11 +134,17 @@ public class DeroJob
         }
 
         // check difficulty
+        var blockDiff = BlockTemplate.Difficulty;
+        if(MHighDiff)
+        {
+            blockDiff *= 9;
+        }
+
         var headerValue = headerHash.ToBigInteger();
         var shareDiff = (double) new BigRational(DeroConstants.Diff1b, headerValue);
         var stratumDifficulty = context.Difficulty;
         var ratio = shareDiff / stratumDifficulty;
-        var isBlockCandidate = shareDiff >= BlockTemplate.Difficulty;
+        var isBlockCandidate = shareDiff >= blockDiff;
 
         // test if share meets at least workers current difficulty
         if(!isBlockCandidate && ratio < 0.99)
