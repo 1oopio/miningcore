@@ -329,6 +329,27 @@ public class StatsRepository : IStatsRepository
         return tmp;
     }
 
+    public Task<uint> GetMinersCountAsync(IDbConnection con, string poolId, DateTime from, CancellationToken ct)
+    {
+        const string query =
+            @"WITH tmp AS
+            (
+            	SELECT
+            		ms.miner,
+            		ms.hashrate,
+            		ms.sharespersecond,
+            		ROW_NUMBER() OVER(PARTITION BY ms.miner ORDER BY ms.hashrate DESC) AS rk
+            	FROM (SELECT miner, SUM(hashrate) AS hashrate, SUM(sharespersecond) AS sharespersecond
+                   FROM minerstats
+                   WHERE poolid = @poolid AND created >= @from AND hashratetype = 'actual' GROUP BY miner, created) ms
+            )
+            SELECT count(t.miner)
+            FROM tmp t
+            WHERE t.rk = 1";
+
+        return con.ExecuteScalarAsync<uint>(new CommandDefinition(query, new { poolId }, cancellationToken: ct));
+    }
+
     public async Task<MinerWorkerPerformanceStats[]> PagePoolMinersByHashrateAsync(IDbConnection con, string poolId,
         DateTime from, int page, int pageSize, CancellationToken ct)
     {
