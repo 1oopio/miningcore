@@ -193,6 +193,27 @@ public class PoolApiController : ApiControllerBase
         return miners;
     }
 
+    [HttpGet("/api/v2/pools/{poolId}/miners")]
+    public async Task<PagedResultResponse<MinerPerformanceStats[]>> PagePoolMinersV2Async(
+        string poolId, [FromQuery] int page, [FromQuery] int pageSize = 15)
+    {
+        var pool = GetPool(poolId);
+        var ct = HttpContext.RequestAborted;
+
+        // set range
+        var end = clock.Now;
+        var start = end.AddDays(-1);
+
+        var miners = (await cf.Run(con => statsRepo.PagePoolMinersByHashrateAsync(con, pool.Id, start, page, pageSize, ct)))
+            .Select(mapper.Map<MinerPerformanceStats>)
+            .ToArray();
+
+        uint pageCount = (uint) Math.Floor((await cf.Run(con => statsRepo.GetMinersCountAsync(con, poolId, start, ct))) / (double) pageSize);
+
+        var response = new PagedResultResponse<Responses.MinerPerformanceStats[]>(miners, 1);
+        return response;
+    }
+
     [HttpGet("{poolId}/blocks")]
     public async Task<Responses.Block[]> PagePoolBlocksAsync(
         string poolId, [FromQuery] int page, [FromQuery] int pageSize = 15, [FromQuery] BlockStatus[] state = null)
