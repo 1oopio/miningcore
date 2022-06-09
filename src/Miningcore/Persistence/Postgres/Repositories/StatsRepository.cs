@@ -347,7 +347,7 @@ public class StatsRepository : IStatsRepository
             FROM tmp t
             WHERE t.rk = 1";
 
-        return con.ExecuteScalarAsync<uint>(new CommandDefinition(query, new { poolId }, cancellationToken: ct));
+        return con.ExecuteScalarAsync<uint>(new CommandDefinition(query, new { poolId, from }, cancellationToken: ct));
     }
 
     public async Task<MinerWorkerPerformanceStats[]> PagePoolMinersByHashrateAsync(IDbConnection con, string poolId,
