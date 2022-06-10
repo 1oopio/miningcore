@@ -210,7 +210,7 @@ public class PoolApiController : ApiControllerBase
 
         uint pageCount = (uint) Math.Floor((await cf.Run(con => statsRepo.GetMinersCountAsync(con, poolId, start, ct))) / (double) pageSize);
 
-        var response = new PagedResultResponse<Responses.MinerPerformanceStats[]>(miners, 1);
+        var response = new PagedResultResponse<Responses.MinerPerformanceStats[]>(miners, pageCount);
         return response;
     }
 
