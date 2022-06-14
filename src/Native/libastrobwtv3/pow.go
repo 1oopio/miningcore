@@ -1,12 +1,17 @@
 package main
 
+// #cgo CFLAGS: -g -Wall
+// #include <stdlib.h>
 import "C"
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math/bits"
+	"unsafe"
 
 	"github.com/cespare/xxhash"
 	"github.com/dchest/siphash"
@@ -34,10 +39,49 @@ var steps = map[uint64]int{}
 
 func main() {}
 
+//export Hash
+func Hash(input string) unsafe.Pointer {
+	// calculate the hash
+	hash := AstroBWTv3([]byte(input))
+	// allocate a new buffer
+	buf := new(bytes.Buffer)
+	// write the length of the hash to the buffer
+	writeInt32(buf, int32(len(hash)+4))
+	// write the hash to the buffer
+	hashString := string(hash[:])
+	writeString(buf, &hashString)
+	// return a pointer to the buffer
+	return C.CBytes(buf.Bytes())
+}
+
+func writeInt32(w io.Writer, value int32) {
+	err := binary.Write(w, binary.LittleEndian, value)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func writeString(buf *bytes.Buffer, value *string) {
+	if value == nil {
+		err := binary.Write(buf, binary.LittleEndian, int32(-1))
+		if err != nil {
+			panic(err)
+		}
+
+	} else {
+		err := binary.Write(buf, binary.LittleEndian, int32(len(*value)))
+		if err != nil {
+			panic(err)
+		}
+		_, err = buf.WriteString(*value)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
 // this will generate a hash
-//export AstroBWTv3
-func AstroBWTv3(input []byte) []byte {
-	var outputhash [32]byte
+func AstroBWTv3(input []byte) (outputhash [32]byte) {
 	//var static_key = [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 
 	scratch := Pool.Get().(*ScratchData)
@@ -2463,5 +2507,5 @@ func AstroBWTv3(input []byte) []byte {
 
 	_ = scratch.hasher.Sum(outputhash[:0])
 
-	return outputhash[:]
+	return
 }
