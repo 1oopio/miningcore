@@ -1,4 +1,4 @@
-package astrobwtv3
+package main
 
 import "testing"
 

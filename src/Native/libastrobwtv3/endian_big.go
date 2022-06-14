@@ -1,7 +1,7 @@
 //go:build armbe || arm64be || mips || mips64 || ppc64 || s390 || s390x || sparc || sparc64
 // +build armbe arm64be mips mips64 ppc64 s390 s390x sparc sparc64
 
-package astrobwtv3
+package main
 
 import "unsafe"
 

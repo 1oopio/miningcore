@@ -7,7 +7,7 @@
 //
 // RC4 is cryptographically broken and should not be used for secure
 // applications.
-package astrobwtv3
+package main
 
 import (
 	"strconv"

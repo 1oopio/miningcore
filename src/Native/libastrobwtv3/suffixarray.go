@@ -13,7 +13,7 @@
 //	// lookup byte slice s
 //	offsets1 := index.Lookup(s, -1) // the list of all indices where s occurs in data
 //	offsets2 := index.Lookup(s, 3)  // the list of at most 3 indices where s occurs in data
-package astrobwtv3
+package main
 
 import (
 	"bytes"

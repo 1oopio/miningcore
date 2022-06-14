@@ -120,7 +120,7 @@
 
 //go:generate go run gen.go
 
-package astrobwtv3
+package main
 
 // text_32 returns the suffix array for the input text.
 // It requires that len(text) fit in an int32
