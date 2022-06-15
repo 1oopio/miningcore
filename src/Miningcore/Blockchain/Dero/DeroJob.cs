@@ -5,14 +5,13 @@ using Miningcore.Stratum;
 using Org.BouncyCastle.Math;
 using Miningcore.Crypto.Hashing.Algorithms;
 using Contract = Miningcore.Contracts.Contract;
-using System.Security.Cryptography;
 
 namespace Miningcore.Blockchain.Dero;
 
 public class DeroJob
 {
     private int extraNonce;
-    private readonly Astrobwt2 Astrobwt2 = new Astrobwt2();
+    private readonly Astrobwt Astrobwt = new Astrobwt();
 
     public DeroJob(GetBlockTemplateResponse blockTemplate)
     {
@@ -116,7 +115,7 @@ public class DeroJob
         padded.CopyTo(blob[36..]);
 
         Span<byte> headerHash = stackalloc byte[32];
-        Astrobwt2.Digest(blob, headerHash, 0);
+        Astrobwt.Digest(blob, headerHash, 0);
 
         var blobString = blob.ToHexString();
         var headerHashString = headerHash.ToHexString();

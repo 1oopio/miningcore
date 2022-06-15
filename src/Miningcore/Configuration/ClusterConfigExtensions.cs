@@ -194,7 +194,7 @@ public partial class DeroCoinTemplate
 
     public override string GetAlgorithmName()
     {
-        return "AstroBWT/v2";
+        return "AstroBWT/v3";
     }
 
     #endregion
