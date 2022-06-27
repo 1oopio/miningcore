@@ -1,0 +1,67 @@
+---
+services:
+  miningcore:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./devdata/config.json:/app/config.json
+      - ./devdata/recovered-shares.txt:/app/recovered-shares.txt
+      - ./devdata/xmlkeys:/app/.aspnet/DataProtection-Keys/
+      - ./devdata/data:/app/.ethash
+    ports: ['127.0.0.1:4200:4200','127.0.0.1:8443:5000']
+    depends_on:
+      - db
+
+  db:
+    image: postgres:14
+    restart: unless-stopped
+    volumes:
+      - ./devdata/postgresql/data:/var/lib/postgresql/data:rw
+    environment:
+      POSTGRES_USER: miningcore
+      POSTGRES_PASSWORD: miningcore
+      POSTGRES_DB: miningcore
+    stop_grace_period: 1m
+
+  derod:
+    image: aczd1yuv.gra7.container-registry.ovh.net/stratumfarm/derod:96.0.0
+    hostname: derod
+    restart: unless-stopped
+    volumes: ['./devdata/testnet2:/app/testnet']
+    ports: ['127.0.0.1:10100:10100', '44044:44044/udp', '127.0.0.1:40402:40402']
+    tty: true
+    command:
+      - screen
+      - -S
+      - dero
+      - /app/derod
+      - --testnet
+      #- --add-priority-node=152.228.230.63:44044
+      #- --add-priority-node=152.228.229.130:44044
+      #- --add-priority-node=212.8.242.60:40401
+      - --integrator-address=deto1qygng6v8wyuur552d34hacax2xyasvgdv795uttg9xknkqlccv65cqq0p02cf
+      - --p2p-bind=0.0.0.0:44044
+      - --max-peers=101
+      - --rpc-bind=0.0.0.0:40402
+
+  dero-wallet:
+    image: aczd1yuv.gra7.container-registry.ovh.net/stratumfarm/derod:96.0.0
+    hostname: dero-wallet
+    restart: unless-stopped
+    volumes: ['./devdata/dev_pool_testnet.db:/testnet.db']
+    ports: ['127.0.0.1:20209:20209']
+    networks:
+      default:
+    tty: true
+    command: 
+      - screen
+      - -S
+      - dero
+      - /app/dero-wallet-cli
+      - --testnet
+      - --daemon-address=derod:40402
+      - --wallet-file=/testnet.db
+      - --unlocked
+      - --password=dev
+      - --rpc-server
+      - --rpc-bind=0.0.0.0:20209
