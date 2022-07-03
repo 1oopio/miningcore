@@ -119,3 +119,5 @@ src/Miningcore/config2.json
 /src/Miningcore/coins2.json
 
 !**/lib/**/*
+
+devdata/
