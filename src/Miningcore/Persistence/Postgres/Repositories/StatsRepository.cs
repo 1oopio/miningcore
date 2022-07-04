@@ -390,4 +390,46 @@ public class StatsRepository : IStatsRepository
 
         return con.ExecuteAsync(new CommandDefinition(query, new { date }, cancellationToken: ct));
     }
+
+    public async Task<WorkerStats[]> PageWorkerStatsAsync(IDbConnection con, string poolId, string miner, string worker,
+        DateTime from, int page, int pageSize, CancellationToken ct)
+    {
+        const string query =
+            @"SELECT date_trunc('hour', x.created) AS created,
+           (extract(minute FROM x.created)::int / 10) AS partition,
+           x.worker, AVG(x.hs) AS hashrate, AVG(x.rhs) AS reportedhashrate, AVG(x.sharespersecond) AS sharespersecond
+           FROM (
+           SELECT created, hashrate as hs, null as rhs, sharespersecond, worker FROM minerstats WHERE created >= @from AND poolid = @poolid AND miner = @miner AND hashratetype = 'actual' and worker = @worker
+           UNION
+           SELECT created, null as hs, hashrate as rhs, null as sharespersecond, worker FROM minerstats WHERE created >= @from AND poolid = @poolid AND miner = @miner AND hashratetype = 'reported' and worker = @worker
+           ) as x
+           GROUP BY 1, 2, worker
+           ORDER BY 1, 2, worker DESC
+            OFFSET @offset FETCH NEXT @pageSize ROWS ONLY";
+
+        var entities = (await con.QueryAsync<Entities.MinerWorkerPerformanceStats>(new CommandDefinition(query,
+                new { poolId, miner, worker, from, offset = page * pageSize, pageSize }, cancellationToken: ct)))
+            .ToArray();
+
+        foreach(var entity in entities)
+        {
+            // adjust creation time by partition
+            entity.Created = entity.Created.AddMinutes(10 * entity.Partition);
+        }
+
+        // group
+        var entitiesByDate = entities
+            .GroupBy(x => x.Created);
+
+        return entities.Select(mapper.Map<WorkerStats>)
+            .ToArray();
+    }
+
+    public Task<uint> GetWorkerStatsCountAsync(IDbConnection con, string poolId, string miner, string worker, DateTime from, CancellationToken ct)
+    {
+        const string query =
+            @""; // TODO: implement
+
+        return con.ExecuteScalarAsync<uint>(new CommandDefinition(query, new { poolId, from }, cancellationToken: ct));
+    }
 }

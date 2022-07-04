@@ -644,6 +644,31 @@ public class PoolApiController : ApiControllerBase
             return mapper.Map<Responses.MinerSettings>(result);
         });
     }
+    
+    [HttpGet("/api/v2/pools/{poolId}/miners/{address}/workers/{worker}")]
+    public async Task<PagedResultResponse<Responses.WorkerStats[]>> PageWorkerAsync(
+        string poolId, string address, string worker, [FromQuery] int page, [FromQuery] int pageSize = 15)
+    {
+        var pool = GetPool(poolId);
+        var ct = HttpContext.RequestAborted;
+
+        if(string.IsNullOrEmpty(address))
+            throw new ApiException("Invalid or missing miner address", HttpStatusCode.NotFound);
+
+        if(string.IsNullOrEmpty(worker))
+            throw new ApiException("Invalid or missing worker", HttpStatusCode.NotFound);
+
+        var from = clock.Now.AddDays(-2); // return stats from the last 2 days
+
+        uint pageCount = (uint) Math.Floor((await cf.Run(con => statsRepo.GetWorkerStatsCountAsync(con, poolId, address, worker, from, ct))) / (double) pageSize);
+
+        var stats = (await cf.Run(con => statsRepo.PageWorkerStatsAsync(
+                con, poolId, address, worker, from, page, pageSize, ct)))
+            .Select(mapper.Map<Responses.WorkerStats>)
+            .ToArray();
+
+        return new PagedResultResponse<Responses.WorkerStats[]>(stats, pageCount);
+    }
 
     #endregion // Actions
 

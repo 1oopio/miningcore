@@ -3,6 +3,7 @@ using Miningcore.Persistence.Model;
 using Miningcore.Persistence.Model.Projections;
 using MinerStats = Miningcore.Persistence.Model.Projections.MinerStats;
 
+
 namespace Miningcore.Persistence.Repositories;
 
 public interface IStatsRepository
@@ -13,6 +14,9 @@ public interface IStatsRepository
     Task<decimal> GetTotalPoolPaymentsAsync(IDbConnection con, string poolId, CancellationToken ct);
     Task<PoolStats[]> GetPoolPerformanceBetweenAsync(IDbConnection con, string poolId, SampleInterval interval, DateTime start, DateTime end, CancellationToken ct);
     Task<MinerStats> GetMinerStatsAsync(IDbConnection con, IDbTransaction tx, string poolId, string miner, CancellationToken ct);
+    Task<WorkerStats[]> PageWorkerStatsAsync(IDbConnection con, string poolId, string miner, string worker,
+        DateTime from, int page, int pageSize, CancellationToken ct);
+    Task<uint> GetWorkerStatsCountAsync(IDbConnection con, string poolId, string miner, string worker, DateTime from, CancellationToken ct);
     Task<uint> GetMinersCountAsync(IDbConnection con, string poolId, DateTime from, CancellationToken ct);
     Task<MinerWorkerHashrate[]> GetPoolMinerWorkerHashratesAsync(IDbConnection con, string poolId, string hashratetype, CancellationToken ct);
     Task<MinerWorkerPerformanceStats[]> PagePoolMinersByHashrateAsync(IDbConnection con, string poolId, DateTime from, int page, int pageSize, CancellationToken ct);
