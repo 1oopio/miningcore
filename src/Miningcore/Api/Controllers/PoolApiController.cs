@@ -658,7 +658,7 @@ public class PoolApiController : ApiControllerBase
         if(string.IsNullOrEmpty(worker))
             throw new ApiException("Invalid or missing worker", HttpStatusCode.NotFound);
 
-        var from = clock.Now.AddDays(-2); // return stats from the last 2 days
+        var from = clock.Now.AddDays(-7); // return stats from the last 7 days
 
         uint pageCount = (uint) Math.Floor((await cf.Run(con => statsRepo.GetWorkerStatsCountAsync(con, poolId, address, worker, from, ct))) / (double) pageSize);
 
