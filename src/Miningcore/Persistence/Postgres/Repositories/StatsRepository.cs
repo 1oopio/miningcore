@@ -428,8 +428,18 @@ public class StatsRepository : IStatsRepository
     public Task<uint> GetWorkerStatsCountAsync(IDbConnection con, string poolId, string miner, string worker, DateTime from, CancellationToken ct)
     {
         const string query =
-            @""; // TODO: implement
+            @"SELECT count(*) FROM (
+            SELECT date_trunc('hour', x.created) AS created,
+            (extract(minute FROM x.created)::int / 10) AS partition
+            FROM (
+            SELECT created, worker FROM minerstats WHERE created >= @from AND poolid = @poolid AND miner = @miner AND hashratetype = 'actual' and worker = @worker
+            UNION
+            SELECT created, worker FROM minerstats WHERE created >= @from AND poolid = @poolid AND miner = @miner AND hashratetype = 'reported' and worker = @worker
+            ) as x
+            GROUP BY 1, 2
+            ORDER BY 1, 2 DESC
+        ) _;";
 
-        return con.ExecuteScalarAsync<uint>(new CommandDefinition(query, new { poolId, from }, cancellationToken: ct));
+        return con.ExecuteScalarAsync<uint>(new CommandDefinition(query, new { poolId, miner, worker, from }, cancellationToken: ct));
     }
 }
