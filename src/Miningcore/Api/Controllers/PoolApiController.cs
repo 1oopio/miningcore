@@ -581,6 +581,8 @@ public class PoolApiController : ApiControllerBase
         return result;
     }
 
+
+
     [HttpGet("{poolId}/miners/{address}/settings")]
     public async Task<Responses.MinerSettings> GetMinerSettingsAsync(string poolId, string address)
     {
@@ -588,6 +590,9 @@ public class PoolApiController : ApiControllerBase
 
         if(string.IsNullOrEmpty(address))
             throw new ApiException("Invalid or missing miner address", HttpStatusCode.NotFound);
+
+        if(pool.Template.Family == CoinFamily.Ethereum)
+            address = address.ToLower();
 
         var result = await cf.Run(con=> minerRepo.GetSettingsAsync(con, null, pool.Id, address));
 
@@ -605,6 +610,9 @@ public class PoolApiController : ApiControllerBase
 
         if(string.IsNullOrEmpty(address))
             throw new ApiException("Invalid or missing miner address", HttpStatusCode.NotFound);
+
+        if(pool.Template.Family == CoinFamily.Ethereum)
+            address = address.ToLower();
 
         if(request?.Settings == null)
             throw new ApiException("Invalid or missing settings", HttpStatusCode.BadRequest);
@@ -654,6 +662,9 @@ public class PoolApiController : ApiControllerBase
 
         if(string.IsNullOrEmpty(address))
             throw new ApiException("Invalid or missing miner address", HttpStatusCode.NotFound);
+
+        if(pool.Template.Family == CoinFamily.Ethereum)
+            address = address.ToLower();
 
         if(string.IsNullOrEmpty(worker))
             throw new ApiException("Invalid or missing worker", HttpStatusCode.NotFound);
