@@ -131,7 +131,7 @@ public class StatsRecorder : BackgroundService
 
             // fetch stats for window
             var result = await readFaultPolicy.ExecuteAsync(() =>
-                cf.Run(con => shareRepo.GetHashAccumulationBetweenCreatedAsync(con, poolId, timeFrom, now, ct)));
+                cf.Run(con => shareRepo.GetHashAccumulationBetweenAsync(con, poolId, timeFrom, now, ct)));
 
             var byMiner = result.GroupBy(x => x.Miner).ToArray();
 

@@ -311,6 +311,8 @@ public class RelayReceiver : BackgroundService
 
             poolContext.Logger.Info(() => $"External {(!string.IsNullOrEmpty(share.Source) ? $"[{share.Source.ToUpper()}] " : string.Empty)}share accepted: D={Math.Round(share.Difficulty * shareMultiplier, 4)}");
 
+            messageBus.SendTelemetry(share.PoolId, TelemetryCategory.Share, TimeSpan.Zero, true);
+
             if(pool.NetworkStats != null)
             {
                 pool.NetworkStats.BlockHeight = (ulong) share.BlockHeight;
