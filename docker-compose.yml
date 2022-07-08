@@ -4,7 +4,7 @@ services:
     build: .
     restart: unless-stopped
     volumes:
-      - ./devdata/config-dero-dev.json:/app/config.json
+      - ./devdata/config-test-api.json:/app/config.json
       - ./devdata/recovered-shares.txt:/app/recovered-shares.txt
       - ./devdata/xmlkeys:/app/.aspnet/DataProtection-Keys/
       - ./devdata/data:/app/.ethash
