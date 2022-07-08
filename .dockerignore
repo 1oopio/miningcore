@@ -7,3 +7,4 @@ examples
 .gitattributes
 .gitignore
 build*
+devdata/
