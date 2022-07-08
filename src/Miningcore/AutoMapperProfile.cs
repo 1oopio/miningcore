@@ -67,6 +67,7 @@ public class AutoMapperProfile : Profile
         CreateMap<WorkerPerformanceStats, Api.Responses.WorkerPerformanceStats>();
         CreateMap<WorkerPerformanceStatsContainer, Api.Responses.WorkerPerformanceStatsContainer>();
         CreateMap<MinerWorkerPerformanceStats, Api.Responses.MinerPerformanceStats>();
+        CreateMap<WorkerStats, Api.Responses.WorkerStats>();
 
         // PostgreSQL
         CreateMap<Persistence.Model.Share, Persistence.Postgres.Entities.Share>();
@@ -95,6 +96,9 @@ public class AutoMapperProfile : Profile
         CreateMap<Persistence.Postgres.Entities.MinerSettings, MinerSettings>();
         CreateMap<Persistence.Postgres.Entities.MinerWorkerPerformanceStats, MinerWorkerPerformanceStats>();
         CreateMap<Persistence.Postgres.Entities.MinerWorkerPerformanceStats, Api.Responses.MinerPerformanceStats>();
+
+        CreateMap<Persistence.Postgres.Entities.MinerWorkerPerformanceStats, WorkerStats>();
+        CreateMap<Persistence.Postgres.Entities.MinerWorkerPerformanceStats, Api.Responses.WorkerStats>();
 
         CreateMap<PoolStats, Mining.PoolStats>();
         CreateMap<BlockchainStats, Mining.PoolStats>();
