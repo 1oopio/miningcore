@@ -4,7 +4,8 @@ public enum KaspaNetworkType
 {
     Main = 1,
     Test,
-    Dev
+    Dev,
+    Sim
 }
 
 public static class KaspaConstants
