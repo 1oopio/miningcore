@@ -132,18 +132,21 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
     {
         try
         {
-            //var response = await rpc.ExecuteAsync(logger, KaspaCommands.GetBlockDagInfo, ct);
+            var requestInfo = new KaspadMessage();
+            requestInfo.GetBlockDagInfoRequest = new GetBlockDagInfoRequestMessage();
+            var responseInfo = await grpc.ExecuteAsync(logger, requestInfo, ct);
 
-            //if(response.Error != null)
-            //    logger.Warn(() => $"Error(s) refreshing network stats: {response.Error.Message} (Code {response.Error.Code})");
 
-            //if(response.Response != null)
-            //{
-            //    var info = response.Response.ToObject<GetInfoResponse>();
+            var requestPeers = new KaspadMessage();
+            requestPeers.GetConnectedPeerInfoRequest = new GetConnectedPeerInfoRequestMessage();
+            var responsePeers = await grpc.ExecuteAsync(logger, requestPeers, ct);
 
-            //    BlockchainStats.NetworkHashrate = info.Target > 0 ? (double) info.Difficulty / info.Target : 0;
-            //    BlockchainStats.ConnectedPeers = info.OutgoingConnectionsCount + info.IncomingConnectionsCount;
-            //}
+
+            if(responseInfo != null && responsePeers != null && responseInfo.GetBlockDagInfoResponse != null && responsePeers.GetConnectedPeerInfoResponse != null)
+            {
+                BlockchainStats.NetworkDifficulty = responseInfo.GetBlockDagInfoResponse.Difficulty;
+                BlockchainStats.ConnectedPeers = responsePeers.GetConnectedPeerInfoResponse.Infos.Count;
+            }
         }
 
         catch(Exception e)
@@ -359,10 +362,13 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
     {
         // coin config
         var coin = poolConfig.Template.As<KaspaCoinTemplate>();
-        //var infoResponse = await rpc.ExecuteAsync(logger, KaspaCommands.GetBlockDagInfo, ct);
+        var request = new KaspadMessage();
+        request.GetCurrentNetworkRequest = new GetCurrentNetworkRequestMessage();
 
-        //if(infoResponse.Error != null)
-        //    throw new PoolStartupException($"Init RPC failed: {infoResponse.Error.Message} (Code {infoResponse.Error.Code})", poolConfig.Id);
+        var response = await grpc.ExecuteAsync(logger, request, ct);
+
+        if(response == null || response.GetCurrentNetworkResponse == null)
+            throw new PoolStartupException($"Init gRPC failed", poolConfig.Id);
 
         if(clusterConfig.PaymentProcessing?.Enabled == true && poolConfig.PaymentProcessing?.Enabled == true)
         {
@@ -373,26 +379,27 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
             //    throw new PoolStartupException($"Wallet-Daemon does not own pool-address '{poolConfig.Address}'", poolConfig.Id);
         }
 
-        //var info = infoResponse.Response.ToObject<GetBlockDagInfoResponse>();
-
-        //// chain detection
-        //if(!string.IsNullOrEmpty(info.NetworkName))
-        //{
-        //    switch(info.NetworkName.ToLower())
-        //    {
-        //        case "mainnet":
-        //            networkType = KaspaNetworkType.Main;
-        //            break;
-        //        case "devnet":
-        //            networkType = KaspaNetworkType.Dev;
-        //            break;
-        //        case "testnet":
-        //            networkType = KaspaNetworkType.Test;
-        //            break;
-        //        default:
-        //            throw new PoolStartupException($"Unsupport net type '{info.NetworkName}'", poolConfig.Id);
-        //    }
-        //}
+        // chain detection
+        if(!string.IsNullOrEmpty(response.GetCurrentNetworkResponse.CurrentNetwork))
+        {
+            switch(response.GetCurrentNetworkResponse.CurrentNetwork.ToLower())
+            {
+                case "mainnet":
+                    networkType = KaspaNetworkType.Main;
+                    break;
+                case "devnet":
+                    networkType = KaspaNetworkType.Dev;
+                    break;
+                case "testnet":
+                    networkType = KaspaNetworkType.Test;
+                    break;
+                case "simnet":
+                    networkType = KaspaNetworkType.Sim;
+                    break;
+                default:
+                    throw new PoolStartupException($"Unsupport net type '{response.GetCurrentNetworkResponse.CurrentNetwork}'", poolConfig.Id);
+            }
+        }
 
         //// address validation
         //poolAddressBase58Prefix = CryptonoteBindings.DecodeAddress(poolConfig.Address);
@@ -436,7 +443,27 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
     protected virtual void SetupJobUpdates(CancellationToken ct)
     {
-      //
+        var blockSubmission = blockFoundSubject.Synchronize();
+        var pollTimerRestart = blockFoundSubject.Synchronize();
+
+        var triggers = new List<IObservable<(string Via, string Data)>>
+        {
+            blockSubmission.Select(x => (JobRefreshBy.BlockFound, (string) null))
+        };
+
+        // get initial blocktemplate
+        triggers.Add(Observable.Interval(TimeSpan.FromMilliseconds(1000))
+            .Select(_ => (JobRefreshBy.Initial, (string) null))
+            .TakeWhile(_ => !hasInitialBlockTemplate));
+
+        Blocks = triggers.Merge()
+            .Select(x => Observable.FromAsync(() => UpdateJob(ct, x.Via, x.Data)))
+            .Concat()
+            .Where(isNew => isNew)
+            .Do(_ => hasInitialBlockTemplate = true)
+            .Select(_ => Unit.Default)
+            .Publish()
+            .RefCount();
     }
 
     #endregion // Overrides
