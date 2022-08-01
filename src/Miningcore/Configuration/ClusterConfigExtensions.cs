@@ -200,6 +200,18 @@ public partial class DeroCoinTemplate
     #endregion
 }
 
+public partial class KaspaCoinTemplate
+{
+    #region Overrides of CoinTemplate
+
+    public override string GetAlgorithmName()
+    {
+        return "Kaspa";
+    }
+
+    #endregion
+}
+
 public partial class PoolConfig
 {
     /// <summary>
