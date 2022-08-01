@@ -34,6 +34,9 @@ public enum CoinFamily
     [EnumMember(Value = "dero")]
     Dero,
 
+    [EnumMember(Value = "kaspa")]
+    Kaspa,
+
     [EnumMember(Value = "nexa")]
     Nexa,
 }
@@ -139,6 +142,7 @@ public abstract partial class CoinTemplate
         {CoinFamily.Ethereum, typeof(EthereumCoinTemplate)},
         {CoinFamily.Ergo, typeof(ErgoCoinTemplate)},
         {CoinFamily.Dero, typeof(DeroCoinTemplate)},
+        {CoinFamily.Kaspa, typeof(KaspaCoinTemplate)},
         {CoinFamily.Nexa, typeof(BitcoinTemplate)}
     };
 }
@@ -538,6 +542,10 @@ public partial class DeroCoinTemplate : CoinTemplate
     [JsonProperty(DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate)]
     [DefaultValue(1.0d)]
     public decimal BlockrewardMultiplier { get; set; }
+}
+
+public partial class KaspaCoinTemplate : CoinTemplate
+{
 }
 
 #endregion // Coin Definitions
