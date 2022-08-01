@@ -31,16 +31,23 @@ public class KaspaGrpcClient
         Contract.RequiresNonNull(messageBus);
         Contract.Requires<ArgumentException>(!string.IsNullOrEmpty(poolId));
 
+        var protocol = endPoint.Ssl ? Uri.UriSchemeHttps : Uri.UriSchemeHttp;
+        var requestUrl = $"{protocol}://{endPoint.Host}:{endPoint.Port}";
+
         config = endPoint;
         this.messageBus = messageBus;
         this.poolId = poolId;
+        this.channel = GrpcChannel.ForAddress(requestUrl);
+        this.client = new RPC.RPCClient(this.channel);
+        this.stream = client.MessageStream(null, null);
     }
 
-    private readonly JsonSerializerSettings serializerSettings;
     protected readonly DaemonEndpointConfig config;
-    private readonly JsonSerializer serializer;
     private readonly IMessageBus messageBus;
     private readonly string poolId;
+    private readonly GrpcChannel channel;
+    private readonly RPC.RPCClient client;
+    private AsyncDuplexStreamingCall<KaspadMessage, KaspadMessage> stream;
 
     public async Task<KaspadMessage> ExecuteAsync(ILogger logger, KaspadMessage reqMessage, CancellationToken ct, bool throwOnError = false)
     {
@@ -51,15 +58,13 @@ public class KaspaGrpcClient
 
             logger.Trace(() => $"Sending gRPC request to {requestUrl}: {reqMessage}");
 
-            using var channel = GrpcChannel.ForAddress(requestUrl);
-            var client = new RPC.RPCClient(channel);
-
-            var stream = client.MessageStream(null, null, ct);
             await stream.RequestStream.WriteAsync(reqMessage, ct);
 
             await foreach(var response in stream.ResponseStream.ReadAllAsync())
             {
                 logger.Trace(() => $"Received gRPC response: {response}");
+
+                // messageBus.SendTelemetry(poolId, TelemetryCategory.RpcRequest, method, sw.Elapsed, response.IsSuccessStatusCode);
                 return response;
             }
 
@@ -71,6 +76,9 @@ public class KaspaGrpcClient
         }
         catch(Exception ex)
         {
+            this.stream.Dispose();
+            this.stream = client.MessageStream(null, null);
+
             if(throwOnError)
                 throw;
 
