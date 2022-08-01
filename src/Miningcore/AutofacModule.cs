@@ -4,10 +4,11 @@ using Miningcore.Api;
 using Miningcore.Banning;
 using Miningcore.Blockchain.Bitcoin;
 using Miningcore.Blockchain.Cryptonote;
-using Miningcore.Blockchain.Equihash;
-using Miningcore.Blockchain.Ethereum;
-using Miningcore.Blockchain.Ergo;
 using Miningcore.Blockchain.Dero;
+using Miningcore.Blockchain.Equihash;
+using Miningcore.Blockchain.Ergo;
+using Miningcore.Blockchain.Ethereum;
+using Miningcore.Blockchain.Kaspa;
 using Miningcore.Configuration;
 using Miningcore.Crypto;
 using Miningcore.Crypto.Hashing.Equihash;
@@ -173,6 +174,11 @@ public class AutofacModule : Module
         // Dero
 
         builder.RegisterType<DeroJobManager>();
+
+        //////////////////////
+        // Kaspa
+
+        builder.RegisterType<KaspaJobManager>();
 
         base.Load(builder);
     }
