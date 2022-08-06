@@ -45,6 +45,8 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
     private readonly IMasterClock clock;
     private KaspaNetworkType networkType;
     private KaspaCoinTemplate coin;
+    private readonly List<KaspaJob> validJobs = new();
+    private int maxActiveJobs = 99;
 
     protected async Task<bool> UpdateJob(CancellationToken ct, string via = null, string json = null)
     {
@@ -80,12 +82,23 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
                 else
                     logger.Info(() => $"Detected new block {newHash}");
 
-                job = new KaspaJob(block, NextJobId(), newHash);
-                
+                var jobId = NextJobId();
+
+                job = new KaspaJob(block, jobId, newHash);
+
+                lock(jobLock)
+                {
+                    validJobs.Insert(0, job);
+
+                    // trim active jobs
+                    while(validJobs.Count > maxActiveJobs)
+                        validJobs.RemoveAt(validJobs.Count - 1);
+                }
+
                 currentJob = job;
 
                 BlockchainStats.LastNetworkBlockTime = clock.Now;
-                // BlockchainStats.BlockHeight = job.BlockTemplate.Height;
+                BlockchainStats.BlockHeight = block.Header.BlueScore; // Not really height, but we have nothing else
                 // BlockchainStats.NetworkDifficulty = TODO calculate based on block.Header.Bits
                 BlockchainStats.NextNetworkTarget = "";
                 BlockchainStats.NextNetworkBits = "";
@@ -148,18 +161,21 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         }
     }
 
-    private async Task<bool> SubmitBlockAsync(Share share, string blobHex, string blobHash)
+    private async Task<bool> SubmitBlockAsync(Share share, RpcBlock block)
     {
-        //var response = await rpc.ExecuteAsync<SubmitResponse>(logger, CryptonoteCommands.SubmitBlock, CancellationToken.None, new[] { blobHex });
+        var request = new KaspadMessage();
+        request.SubmitBlockRequest = new SubmitBlockRequestMessage();
+        request.SubmitBlockRequest.Block = block;
+        request.SubmitBlockRequest.AllowNonDAABlocks = false;
+        var response = await grpc.ExecuteAsync(logger, request, CancellationToken.None);
 
-        //if(response.Error != null || response?.Response?.Status != "OK")
-        //{
-        //    var error = response.Error?.Message ?? response.Response?.Status;
-
-        //    logger.Warn(() => $"Block {share.BlockHeight} [{blobHash[..6]}] submission failed with: {error}");
-        //    messageBus.SendMessage(new AdminNotification("Block submission failed", $"Pool {poolConfig.Id} {(!string.IsNullOrEmpty(share.Source) ? $"[{share.Source.ToUpper()}] " : string.Empty)}failed to submit block {share.BlockHeight}: {error}"));
-        //    return false;
-        //}
+        if (response == null || response.SubmitBlockResponse == null || response.SubmitBlockResponse.Error != null)
+        {
+            var error = response.SubmitBlockResponse.Error.Message;
+            logger.Warn(() => $"Block {share.BlockHeight} [{share.BlockHash[..6]}] submission failed with: {error}");
+            messageBus.SendMessage(new AdminNotification("Block submission failed", $"Pool {poolConfig.Id} {(!string.IsNullOrEmpty(share.Source) ? $"[{share.Source.ToUpper()}] " : string.Empty)}failed to submit block {share.BlockHeight}: {error}"));
+            return false;
+        }
 
         return true;
     }
@@ -216,8 +232,9 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
     public BlockchainStats BlockchainStats { get; } = new();
 
-    public void PrepareWorkerJob(KaspaWorkerJob workerJob, out BigInteger[] jobs , out long timestamp)
+    public void PrepareWorkerJob(KaspaWorkerJob workerJob, out string hash, out BigInteger[] jobs , out long timestamp)
     {
+        hash = null;
         jobs = null;
         timestamp = 0;
 
@@ -227,61 +244,68 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         {
             lock(job)
             {
-                job.PrepareWorkerJob(workerJob, out jobs, out timestamp);
+                job.PrepareWorkerJob(workerJob, out hash, out jobs, out timestamp);
             }
         }
     }
 
-    //public async ValueTask<Share> SubmitShareAsync(StratumConnection worker,
-    //    CryptonoteSubmitShareRequest request, CryptonoteWorkerJob workerJob, CancellationToken ct)
-    //{
-    //    Contract.RequiresNonNull(worker);
-    //    Contract.RequiresNonNull(request);
+    public async ValueTask<Share> SubmitShareAsync(StratumConnection worker, string[] request, CancellationToken ct)
+    {
+        Contract.RequiresNonNull(worker);
+        Contract.RequiresNonNull(request);
 
-    //    var context = worker.ContextAs<CryptonoteWorkerContext>();
+        var context = worker.ContextAs<KaspaWorkerContext>();
+        var jobId = request[1];
+        var nonce = request[2];
 
-    //    var job = currentJob;
-    //    if(workerJob.Height != job?.BlockTemplate.Height)
-    //        throw new StratumException(StratumError.MinusOne, "block expired");
+        KaspaJob job;
+        lock(jobLock)
+        {
+            job = validJobs.FirstOrDefault(x => x.JobId == jobId);
+        }
 
-    //    // validate & process
-    //    var (share, blobHex) = job.ProcessShare(request.Nonce, workerJob.ExtraNonce, request.Hash, worker);
+        if(job == null)
+            throw new StratumException(StratumError.JobNotFound, "job not found");
 
-    //    // enrich share with common data
-    //    share.PoolId = poolConfig.Id;
-    //    share.IpAddress = worker.RemoteEndpoint.Address.ToString();
-    //    share.Miner = context.Miner;
-    //    share.Worker = context.Worker;
-    //    share.UserAgent = context.UserAgent;
-    //    share.Source = clusterConfig.ClusterName;
-    //    share.NetworkDifficulty = job.BlockTemplate.Difficulty;
-    //    share.Created = clock.Now;
 
-    //    // if block candidate, submit & check if accepted by network
-    //    if(share.IsBlockCandidate)
-    //    {
-    //        logger.Info(() => $"Submitting block {share.BlockHeight} [{share.BlockHash[..6]}]");
+        // validate & process
+        var (share, block) = job.ProcessShare(nonce, worker);
 
-    //        share.IsBlockCandidate = await SubmitBlockAsync(share, blobHex, share.BlockHash);
+        // enrich share with common data
+        share.PoolId = poolConfig.Id;
+        share.IpAddress = worker.RemoteEndpoint.Address.ToString();
+        share.Miner = context.Miner;
+        share.Worker = context.Worker;
+        share.UserAgent = context.UserAgent;
+        share.Source = clusterConfig.ClusterName;
+        //share.NetworkDifficulty = job.BlockTemplate.Difficulty;
+        share.Created = clock.Now;
 
-    //        if(share.IsBlockCandidate)
-    //        {
-    //            logger.Info(() => $"Daemon accepted block {share.BlockHeight} [{share.BlockHash[..6]}] submitted by {context.Miner}");
+        // if block candidate, submit & check if accepted by network
+        if(share.IsBlockCandidate)
+        {
+            logger.Info(() => $"Submitting block {share.BlockHeight} [{share.BlockHash[..6]}]");
 
-    //            OnBlockFound();
+            share.IsBlockCandidate = await SubmitBlockAsync(share, block);
 
-    //            share.TransactionConfirmationData = share.BlockHash;
-    //        }
+            if(share.IsBlockCandidate)
+            {
+                logger.Info(() => $"Daemon accepted block {share.BlockHeight} [{share.BlockHash[..6]}] submitted by {context.Miner}");
 
-    //        else
-    //        {
-    //            // clear fields that no longer apply
-    //            share.TransactionConfirmationData = null;
-    //        }
-    //    }
+                OnBlockFound();
 
-    //    return share;
-    //}
+                share.TransactionConfirmationData = share.BlockHash;
+            }
+
+            else
+            {
+                // clear fields that no longer apply
+                share.TransactionConfirmationData = null;
+            }
+        }
+
+        return share;
+    }
 
     #endregion // API-Surface
 

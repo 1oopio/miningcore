@@ -3,6 +3,7 @@ using System.Text;
 using Miningcore.Crypto.Hashing.Algorithms;
 using Contract = Miningcore.Contracts.Contract;
 using Miningcore.Blockchain.Kaspa.RPC;
+using Miningcore.Stratum;
 using BigInteger = System.Numerics.BigInteger;
 
 namespace Miningcore.Blockchain.Kaspa;
@@ -16,6 +17,7 @@ public class KaspaJob
 
         Block = block;
         PrevHash = prevHash;
+        JobId = jobId;
     }
 
     private static readonly Blake2b hasher = new Blake2b();
@@ -26,10 +28,14 @@ public class KaspaJob
     public string PrevHash { get; }
     public RpcBlock Block { get; }
 
-    public void PrepareWorkerJob(KaspaWorkerJob workerJob, out BigInteger[] jobs, out long timestamp)
+    public string JobId { get; protected set; }
+
+    public void PrepareWorkerJob(KaspaWorkerJob workerJob, out string hash, out BigInteger[] jobs, out long timestamp)
     {
-        timestamp = Block.Header.Timestamp;
+        workerJob.Id = JobId;
+        hash = PrevHash;
         jobs = JobData(PrevHash);
+        timestamp = Block.Header.Timestamp;
     }
 
     public static string HashBlock(RpcBlock block, Boolean prePow)
@@ -112,6 +118,31 @@ public class KaspaJob
         return (Math.Pow(2, 255) / ((double)(mant << expt))) / Math.Pow(2, 31);
     }
 
+    public (Share Share, RpcBlock block) ProcessShare(string nonce, StratumConnection worker)
+    {
+        Contract.Requires<ArgumentException>(!string.IsNullOrEmpty(nonce));
 
-    #endregion // API-Surface
-}
+        var block = Block.Clone();
+        block.Header.Nonce = (ulong) nonce.HexToByteArray().AsSpan().ToBigInteger();
+
+        var isBlockCandidate = true; // TODO
+
+        var result = new Share
+        {
+            BlockHeight = (long)block.Header.BlueScore,
+            Difficulty = 1, // TODO
+        };
+
+        if(isBlockCandidate)
+        {
+            // Fill in block-relevant fields
+            result.IsBlockCandidate = true;
+            result.BlockHash = HashBlock(block, false);
+        }
+
+        return (result, block);
+
+    }
+
+        #endregion // API-Surface
+    }
