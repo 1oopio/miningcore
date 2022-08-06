@@ -28,6 +28,11 @@ public class KaspaStratumMethods
     public const string SetDifficulty = "mining.set_difficulty";
 
     /// <summary>
+    /// Set extra nonce parameter for miner
+    /// </summary>
+    public const string SetExtranonce = "mining.set_extranonce";
+    
+    /// <summary>
     /// Reported hashrate 
     /// </summary>
     public const string SubmitHashrate = "mining.submit_hashrate";

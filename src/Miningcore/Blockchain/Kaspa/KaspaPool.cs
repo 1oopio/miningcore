@@ -54,6 +54,8 @@ public class KaspaPool : PoolBase
         if(requestParams == null || requestParams.Length < 1 || requestParams.Any(string.IsNullOrEmpty))
             throw new StratumException(StratumError.MinusOne, "invalid request");
 
+        manager.PrepareWorker(connection);
+
         context.UserAgent = requestParams.FirstOrDefault()?.Trim();
 
         if(requestParams.Length >= 2 && requestParams[1] == "EthereumStratum/1.0.0")
@@ -121,7 +123,7 @@ public class KaspaPool : PoolBase
                 logger.Info(() => $"[{connection.ConnectionId}] Setting static difficulty of {staticDiff.Value}");
             }
 
-            //await connection.NotifyAsync(KaspaStratumMethods.SetExtranonce, xx);
+            await connection.NotifyAsync(KaspaStratumMethods.SetExtranonce, new object[] { context.ExtraNonce1, 6 });
             await connection.NotifyAsync(KaspaStratumMethods.SetDifficulty, new object[] { context.Difficulty });
 
             logger.Info(() => $"[{connection.ConnectionId}] Authorized worker {workerValue}");
@@ -165,13 +167,6 @@ public class KaspaPool : PoolBase
                 jobs,
                 timestamp
             };
-        }
-
-
-        // update context
-        lock(context)
-        {
-            //context.AddJob(job);
         }
 
         return result;
@@ -313,7 +308,11 @@ public class KaspaPool : PoolBase
 
     protected override async Task SetupJobManager(CancellationToken ct)
     {
-        manager = ctx.Resolve<KaspaJobManager>();
+        var extraNonce1Size = 2;
+
+        manager = ctx.Resolve<KaspaJobManager>(
+            new TypedParameter(typeof(IExtraNonceProvider), new KaspaExtraNonceProvider(poolConfig.Id, extraNonce1Size, clusterConfig.InstanceId)));
+
         manager.Configure(poolConfig, clusterConfig);
 
         await manager.StartAsync(ct);
