@@ -30,21 +30,28 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
     public KaspaJobManager(
         IComponentContext ctx,
         IMasterClock clock,
+        IExtraNonceProvider extraNonceProvider,
         IMessageBus messageBus) :
         base(ctx, messageBus)
     {
         Contract.RequiresNonNull(ctx);
         Contract.RequiresNonNull(clock);
+        Contract.RequiresNonNull(extraNonceProvider);
         Contract.RequiresNonNull(messageBus);
 
         this.clock = clock;
+        this.extraNonceProvider = extraNonceProvider;
+
+        extraNonceSize = 8 - extraNonceProvider.ByteSize;
     }
 
     private DaemonEndpointConfig[] daemonEndpoints;
     private KaspaGrpcClient grpc;
     private readonly IMasterClock clock;
     private KaspaNetworkType networkType;
+    private readonly IExtraNonceProvider extraNonceProvider;
     private KaspaCoinTemplate coin;
+    private readonly int extraNonceSize;
     private readonly List<KaspaJob> validJobs = new();
     private int maxActiveJobs = 99;
 
@@ -84,7 +91,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
                 var jobId = NextJobId();
 
-                job = new KaspaJob(block, jobId, newHash);
+                job = new KaspaJob(block, jobId, newHash, extraNonceSize);
 
                 lock(jobLock)
                 {
@@ -99,7 +106,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
                 BlockchainStats.LastNetworkBlockTime = clock.Now;
                 BlockchainStats.BlockHeight = block.Header.BlueScore; // Not really height, but we have nothing else
-                // BlockchainStats.NetworkDifficulty = TODO calculate based on block.Header.Bits
+                BlockchainStats.NetworkDifficulty = job.EncodeTarget();
                 BlockchainStats.NextNetworkTarget = "";
                 BlockchainStats.NextNetworkBits = "";
             }
@@ -256,7 +263,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
         var context = worker.ContextAs<KaspaWorkerContext>();
         var jobId = request[1];
-        var nonce = request[2];
+        var nonce = request[2].StripHexPrefix();
 
         KaspaJob job;
         lock(jobLock)
@@ -307,6 +314,12 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         }
 
         return share;
+    }
+
+    public void PrepareWorker(StratumConnection client)
+    {
+        var context = client.ContextAs<KaspaWorkerContext>();
+        context.ExtraNonce1 = extraNonceProvider.Next();
     }
 
     #endregion // API-Surface
