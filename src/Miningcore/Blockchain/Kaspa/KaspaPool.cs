@@ -177,6 +177,47 @@ public class KaspaPool : PoolBase
         return result;
     }
 
+    
+    private async Task OnSubmitHashrate(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
+    {
+        var request = tsRequest.Value;
+        var context = connection.ContextAs<KaspaWorkerContext>();
+
+        // validate worker
+        if(!context.IsAuthorized)
+            throw new StratumException(StratumError.UnauthorizedWorker, "unauthorized worker");
+        if(!context.IsSubscribed)
+            throw new StratumException(StratumError.NotSubscribed, "not subscribed");
+
+        // recognize activity
+        context.LastActivity = clock.Now;
+
+        await connection.RespondAsync(true, request.Id);
+
+        var hashrateRequest = request.ParamsAs<string[]>();
+
+        var hashrate = hashrateRequest[0].StripHexPrefix();
+
+        if(!ulong.TryParse(hashrate, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var longHashrate))
+            throw new StratumException(StratumError.MinusOne, "bad hashrate " + hashrate);
+
+        var lastAge = clock.Now - context.Stats.LastReportedHashrate;
+        context.Stats.ReportedHashrate = longHashrate;
+
+        if(lastAge > reportedHashrateInterval)
+        {
+            context.Stats.LastReportedHashrate = clock.Now;
+            ReportedHashrate reported = new ReportedHashrate
+            {
+                PoolId = poolConfig.Id,
+                Miner = context.Miner,
+                Worker = context.Worker,
+                Hashrate = longHashrate
+            };
+            messageBus.SendMessage(new StratumReportedHashrate(connection, reported));
+        }
+    }
+
     private async Task OnSubmitAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
         var request = tsRequest.Value;
@@ -332,9 +373,7 @@ public class KaspaPool : PoolBase
                     await OnSubmitAsync(connection, tsRequest, ct);
                     break;
                 case KaspaStratumMethods.SubmitHashrate:
-                    // TODO
-                    //await OnSubmitHashrate(connection, tsRequest, ct);
-                    await connection.RespondAsync(true, request.Id);
+                    await OnSubmitHashrate(connection, tsRequest, ct);
                     break;
                 default:
                     logger.Debug(() => $"[{connection.ConnectionId}] Unsupported RPC request: {JsonConvert.SerializeObject(request, serializerSettings)}");
