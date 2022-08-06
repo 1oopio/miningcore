@@ -13,4 +13,6 @@ public class KaspaWorkerContext : WorkerContextBase
     /// Arbitrary worker identififer for miners using multiple rigs
     /// </summary>
     public string Worker { get; set; }
+
+    public Boolean EthereumStratumVariant { get; set; } = false;
 }

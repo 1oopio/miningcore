@@ -4,13 +4,12 @@ namespace Miningcore.Blockchain.Kaspa;
 
 public class KaspaWorkerJob
 {
-    public KaspaWorkerJob(string jobId, double difficulty)
+    public KaspaWorkerJob( double difficulty)
     {
-        Id = jobId;
         Difficulty = difficulty;
     }
 
-    public string Id { get; }
+    public string Id { get; set; }
     public uint ExtraNonce { get; set; }
     public double Difficulty { get; set; }
     public string SeedHash { get; set; }
