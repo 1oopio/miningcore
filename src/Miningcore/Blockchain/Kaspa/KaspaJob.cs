@@ -4,13 +4,14 @@ using Miningcore.Crypto.Hashing.Algorithms;
 using Contract = Miningcore.Contracts.Contract;
 using Miningcore.Blockchain.Kaspa.RPC;
 using Miningcore.Stratum;
+using System.Collections.Concurrent;
 using BigInteger = System.Numerics.BigInteger;
 
 namespace Miningcore.Blockchain.Kaspa;
 
 public class KaspaJob
 {
-    public KaspaJob(RpcBlock block, string jobId, string prevHash)
+    public KaspaJob(RpcBlock block, string jobId, string prevHash, int extraNonceSize)
     {
         Contract.RequiresNonNull(block);
         Contract.Requires<ArgumentException>(!string.IsNullOrEmpty(jobId));
@@ -18,17 +19,27 @@ public class KaspaJob
         Block = block;
         PrevHash = prevHash;
         JobId = jobId;
+        this.extraNonceSize = extraNonceSize;
     }
 
     private static readonly Blake2b hasher = new Blake2b();
 
-    #region API-Surface
+    protected bool RegisterSubmit( string nonce)
+    {
+        var key = new StringBuilder()
+              .Append(nonce)
+            .ToString();
 
+        return submissions.TryAdd(key, true);
+    }
+
+    #region API-Surface
 
     public string PrevHash { get; }
     public RpcBlock Block { get; }
-
+    private readonly ConcurrentDictionary<string, bool> submissions = new(StringComparer.OrdinalIgnoreCase);
     public string JobId { get; protected set; }
+    private int extraNonceSize;
 
     public void PrepareWorkerJob(KaspaWorkerJob workerJob, out string hash, out BigInteger[] jobs, out long timestamp)
     {
@@ -115,12 +126,26 @@ public class KaspaJob
         {
             expt = (Int32) (8 * ((bits >> 24) - 3));
         }
-        return (Math.Pow(2, 255) / ((double)(mant << expt))) / Math.Pow(2, 31);
+        return (double)((BigInteger.Pow(2, 255) / (mant << expt)) / BigInteger.Pow(2, 31));
     }
 
     public (Share Share, RpcBlock block) ProcessShare(string nonce, StratumConnection worker)
     {
+        Contract.RequiresNonNull(worker);
         Contract.Requires<ArgumentException>(!string.IsNullOrEmpty(nonce));
+
+        var context = worker.ContextAs<KaspaWorkerContext>();
+
+        // validate nonce
+        if(nonce.Length != context.ExtraNonce1.Length + extraNonceSize * 2)
+            throw new StratumException(StratumError.Other, "incorrect size of nonce");
+
+        if(!nonce.StartsWith(context.ExtraNonce1))
+            throw new StratumException(StratumError.Other, $"incorrect extraNonce in nonce (expected {context.ExtraNonce1}, got {nonce.Substring(0, Math.Min(nonce.Length, context.ExtraNonce1.Length))})");
+
+        // dupe check
+        if(!RegisterSubmit(nonce))
+            throw new StratumException(StratumError.DuplicateShare, $"duplicate share");
 
         var block = Block.Clone();
         block.Header.Nonce = BitConverter.ToUInt64(nonce.HexToReverseByteArray().AsSpan());
@@ -130,7 +155,7 @@ public class KaspaJob
         var result = new Share
         {
             BlockHeight = (long)block.Header.BlueScore,
-            Difficulty = 1, // TODO
+            Difficulty = EncodeTarget()
         };
 
         if(isBlockCandidate)
