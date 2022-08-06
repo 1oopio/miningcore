@@ -1,3 +1,4 @@
+using Miningcore.Extensions;
 using System.Globalization;
 using System.Reactive;
 using System.Reactive.Linq;
@@ -14,6 +15,7 @@ using Miningcore.Persistence;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Stratum;
 using Miningcore.Time;
+using Miningcore.Notifications.Messages;
 using Newtonsoft.Json;
 using static Miningcore.Util.ActionUtils;
 
@@ -56,15 +58,12 @@ public class KaspaPool : PoolBase
 
         if(requestParams.Length >= 2 && requestParams[1] == "EthereumStratum/1.0.0")
         {
+            context.EthereumStratumVariant = true;
+
             var data = new object[]
             {
-                    new object[]
-                    {
-                        KaspaStratumMethods.MiningNotify,
-                        connection.ConnectionId,
-                        "EthereumStratum/1.0.0"
-                    },
-                    "0000" // Extra nonce
+                 true,
+                "EthereumStratum/1.0.0"
             }
             .ToArray();
 
@@ -144,16 +143,30 @@ public class KaspaPool : PoolBase
     private object[] CreateWorkerJob(StratumConnection connection)
     {
         var context = connection.ContextAs<KaspaWorkerContext>();
-        var job = new KaspaWorkerJob(NextJobId(), context.Difficulty);
+        var job = new KaspaWorkerJob(context.Difficulty);
+        var result = new object[] { };
 
-        manager.PrepareWorkerJob(job, out var jobs, out var timestamp);
+        manager.PrepareWorkerJob(job, out var hash, out var jobs, out var timestamp);
 
-        var result = new object[]
+        if(context.EthereumStratumVariant)
         {
-            job.Id,
-            jobs,
-            timestamp
+            result = new object[]
+            {
+                job.Id,
+                hash + "000000000000000000" // TODO
         };
+
+        }
+        else
+        {
+            result = new object[]
+            {
+                job.Id,
+                jobs,
+                timestamp
+            };
+        }
+
 
         // update context
         lock(context)
@@ -166,83 +179,76 @@ public class KaspaPool : PoolBase
 
     private async Task OnSubmitAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
-        //var request = tsRequest.Value;
-        //var context = connection.ContextAs<CryptonoteWorkerContext>();
+        var request = tsRequest.Value;
+        var context = connection.ContextAs<KaspaWorkerContext>();
 
-        //try
-        //{
-        //    if(request.Id == null)
-        //        throw new StratumException(StratumError.MinusOne, "missing request id");
+        try
+        {
+            if(request.Id == null)
+                throw new StratumException(StratumError.MinusOne, "missing request id");
 
-        //    // check age of submission (aged submissions are usually caused by high server load)
-        //    var requestAge = clock.Now - tsRequest.Timestamp.UtcDateTime;
+            // check age of submission (aged submissions are usually caused by high server load)
+            var requestAge = clock.Now - tsRequest.Timestamp.UtcDateTime;
 
-        //    if(requestAge > maxShareAge)
-        //    {
-        //        logger.Warn(() => $"[{connection.ConnectionId}] Dropping stale share submission request (server overloaded?)");
-        //        return;
-        //    }
+            if(requestAge > maxShareAge)
+            {
+                logger.Warn(() => $"[{connection.ConnectionId}] Dropping stale share submission request (server overloaded?)");
+                return;
+            }
 
-        //    // check request
-        //    var submitRequest = request.ParamsAs<CryptonoteSubmitShareRequest>();
+            // validate worker
+            if(!context.IsAuthorized)
+                throw new StratumException(StratumError.UnauthorizedWorker, "unauthorized worker");
+            if(!context.IsSubscribed)
+                throw new StratumException(StratumError.NotSubscribed, "not subscribed");
 
-        //    // validate worker
-        //    if(connection.ConnectionId != submitRequest?.WorkerId || !context.IsAuthorized)
-        //        throw new StratumException(StratumError.MinusOne, "unauthorized");
+            // check request
+            var submitRequest = request.ParamsAs<string[]>();
 
-        //    // recognize activity
-        //    context.LastActivity = clock.Now;
+            if(submitRequest.Length != 3 ||
+               submitRequest.Any(string.IsNullOrEmpty))
+                throw new StratumException(StratumError.MinusOne, "malformed PoW result");
 
-        //    CryptonoteWorkerJob job;
+            // recognize activity
+            context.LastActivity = clock.Now;
 
-        //    lock(context)
-        //    {
-        //        var jobId = submitRequest?.JobId;
+            Share share = await manager.SubmitShareAsync(connection, submitRequest, ct);
 
-        //        if((job = context.FindJob(jobId)) == null)
-        //            throw new StratumException(StratumError.MinusOne, "invalid jobid");
-        //    }
+            await connection.RespondAsync(true, request.Id);
 
-        //    // dupe check
-        //    if(!job.Submissions.TryAdd(submitRequest.Nonce, true))
-        //        throw new StratumException(StratumError.MinusOne, "duplicate share");
+            // publish
+            messageBus.SendMessage(new StratumShare(connection, share));
 
-        //    // submit
-        //    var share = await manager.SubmitShareAsync(connection, submitRequest, job, ct);
-        //    await connection.RespondAsync(new CryptonoteResponseBase(), request.Id);
+            // telemetry
+            PublishTelemetry(TelemetryCategory.Share, clock.Now - tsRequest.Timestamp.UtcDateTime, true);
 
-        //    // publish
-        //    messageBus.SendMessage(new StratumShare(connection, share));
+            //logger.Info(() => $"[{connection.ConnectionId}] Share accepted: D={Math.Round(share.Difficulty / EthereumConstants.Pow2x32, 3)}");
+            logger.Info(() => $"[{connection.ConnectionId}] Share accepted: FART");
 
-        //    // telemetry
-        //    PublishTelemetry(TelemetryCategory.Share, clock.Now - tsRequest.Timestamp.UtcDateTime, true);
+            // update pool stats
+            if(share.IsBlockCandidate)
+                poolStats.LastPoolBlockTime = clock.Now;
 
-        //    logger.Info(() => $"[{connection.ConnectionId}] Share accepted: D={Math.Round(share.Difficulty, 3)}");
+            // update client stats
+            context.Stats.ValidShares++;
 
-        //    // update pool stats
-        //    if(share.IsBlockCandidate)
-        //        poolStats.LastPoolBlockTime = clock.Now;
+            await UpdateVarDiffAsync(connection, false, ct);
+        }
 
-        //    // update client stats
-        //    context.Stats.ValidShares++;
+        catch(StratumException ex)
+        {
+            // telemetry
+            PublishTelemetry(TelemetryCategory.Share, clock.Now - tsRequest.Timestamp.UtcDateTime, false);
 
-        //    await UpdateVarDiffAsync(connection, false, ct);
-        //}
+            // update client stats
+            context.Stats.InvalidShares++;
+            logger.Info(() => $"[{connection.ConnectionId}] Share rejected: {ex.Message} [{context.UserAgent}]");
 
-        //catch(StratumException ex)
-        //{
-        //    // telemetry
-        //    PublishTelemetry(TelemetryCategory.Share, clock.Now - tsRequest.Timestamp.UtcDateTime, false);
+            // banning
+            ConsiderBan(connection, context, poolConfig.Banning);
 
-        //    // update client stats
-        //    context.Stats.InvalidShares++;
-        //    logger.Info(() => $"[{connection.ConnectionId}] Share rejected: {ex.Message} [{context.UserAgent}]");
-
-        //    // banning
-        //    ConsiderBan(connection, context, poolConfig.Banning);
-
-        //    throw;
-        //}
+            throw;
+        }
     }
 
     private string NextJobId()
@@ -324,6 +330,11 @@ public class KaspaPool : PoolBase
                     break;
                 case KaspaStratumMethods.SubmitShare:
                     await OnSubmitAsync(connection, tsRequest, ct);
+                    break;
+                case KaspaStratumMethods.SubmitHashrate:
+                    // TODO
+                    //await OnSubmitHashrate(connection, tsRequest, ct);
+                    await connection.RespondAsync(true, request.Id);
                     break;
                 default:
                     logger.Debug(() => $"[{connection.ConnectionId}] Unsupported RPC request: {JsonConvert.SerializeObject(request, serializerSettings)}");
