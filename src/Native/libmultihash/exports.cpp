@@ -179,6 +179,30 @@ extern "C" MODULE_API void blake2b_export(const char* input, char* output, uint3
     blake2b(output, output_len == -1 ? BLAKE2B_OUTBYTES : output_len, input, input_len, NULL, 0);
 }
 
+extern "C" MODULE_API void* blake2b_init_export(uint32_t output_len)
+{
+    blake2b_state* state = new blake2b_state();
+    blake2b_init(state, output_len == -1 ? BLAKE2B_OUTBYTES : output_len);
+    return state;
+}
+
+extern "C" MODULE_API void* blake2b_init_key_export(uint32_t output_len, const char* key, uint32_t key_len)
+{
+    blake2b_state* state = new blake2b_state();
+    blake2b_init_key(state, output_len == -1 ? BLAKE2B_OUTBYTES : output_len, key, key_len);
+    return state;
+}
+
+extern "C" MODULE_API void blake2b_update_export(blake2b_state* state, const char* input, uint32_t input_len)
+{
+    blake2b_update(state, (const uint8_t*)input, input_len);
+}
+
+extern "C" MODULE_API void blake2b_final_export(blake2b_state* state, char* output, uint32_t output_len)
+{
+    blake2b_final(state, output, output_len == -1 ? BLAKE2B_OUTBYTES : output_len);
+}
+
 extern "C" MODULE_API void dcrypt_export(const char* input, char* output, uint32_t input_len)
 {
 	dcrypt_hash(input, output, input_len);
