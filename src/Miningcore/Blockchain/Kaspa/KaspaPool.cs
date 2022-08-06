@@ -153,7 +153,7 @@ public class KaspaPool : PoolBase
             result = new object[]
             {
                 job.Id,
-                hash + "000000000000000000" // TODO
+                hash + BitConverter.GetBytes(((UInt64) (timestamp))).AsSpan().ToHexString()
         };
 
         }

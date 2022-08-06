@@ -123,7 +123,7 @@ public class KaspaJob
         Contract.Requires<ArgumentException>(!string.IsNullOrEmpty(nonce));
 
         var block = Block.Clone();
-        block.Header.Nonce = (ulong) nonce.HexToByteArray().AsSpan().ToBigInteger();
+        block.Header.Nonce = BitConverter.ToUInt64(nonce.HexToReverseByteArray().AsSpan());
 
         var isBlockCandidate = true; // TODO
 
