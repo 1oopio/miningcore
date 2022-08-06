@@ -56,7 +56,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
             if(response == null || response.GetBlockTemplateResponse == null || response.GetBlockTemplateResponse.Error != null)
             {
-                logger.Warn(() => $"Unable to update job. Daemon responded with: {response.GetBlockTemplateResponse.Error.Message}");
+                logger.Warn(() => $"Unable to update job. Daemon responded with: {response?.GetBlockTemplateResponse?.Error?.Message}");
                 return false;
             }
 
@@ -171,7 +171,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
         if (response == null || response.SubmitBlockResponse == null || response.SubmitBlockResponse.Error != null)
         {
-            var error = response.SubmitBlockResponse.Error.Message;
+            var error = response?.SubmitBlockResponse?.Error?.Message ?? "Unknown";
             logger.Warn(() => $"Block {share.BlockHeight} [{share.BlockHash[..6]}] submission failed with: {error}");
             messageBus.SendMessage(new AdminNotification("Block submission failed", $"Pool {poolConfig.Id} {(!string.IsNullOrEmpty(share.Source) ? $"[{share.Source.ToUpper()}] " : string.Empty)}failed to submit block {share.BlockHeight}: {error}"));
             return false;
@@ -301,6 +301,8 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
             {
                 // clear fields that no longer apply
                 share.TransactionConfirmationData = null;
+
+                throw new StratumException(StratumError.MinusOne, "Daemon rejected block");
             }
         }
 
