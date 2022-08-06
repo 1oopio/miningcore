@@ -18,4 +18,36 @@ public unsafe class Blake2b : IHashAlgorithm
             }
         }
     }
+
+    public IntPtr Init(int size, ReadOnlySpan<byte> key)
+    {
+        Contract.Requires<ArgumentException>(size >= 32);
+        return Multihash.blake2b_init(size); ;
+    }
+    
+    public IntPtr InitKey(int size, ReadOnlySpan<byte> key)
+    {
+        Contract.Requires<ArgumentException>(size >= 32);
+
+        fixed(byte* input = key)
+        {
+            return Multihash.blake2b_init_key(size, input, (uint) key.Length); ;
+        }
+    }
+
+    public void Update(IntPtr state, ReadOnlySpan<byte> data)
+    {
+        fixed(byte* input = data)
+        {
+            Multihash.blake2b_update(state, input, (uint) data.Length);
+        }
+    }
+
+    public void Final(IntPtr state, Span<byte> result)
+    {
+        fixed(byte* output = result)
+        {
+            Multihash.blake2b_final(state, output, result.Length);
+        }
+    }
 }
