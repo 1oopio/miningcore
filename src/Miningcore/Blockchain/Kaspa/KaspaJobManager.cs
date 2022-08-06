@@ -21,6 +21,7 @@ using NLog;
 using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
 using Miningcore.Blockchain.Kaspa.RPC;
+using BigInteger = System.Numerics.BigInteger;
 
 namespace Miningcore.Blockchain.Kaspa;
 
@@ -49,53 +50,48 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
     {
         try
         {
-            //var response = string.IsNullOrEmpty(json) ? await GetBlockTemplateAsync(ct) : GetBlockTemplateFromJson(json);
+            KaspadMessage response = string.IsNullOrEmpty(json) ? await GetBlockTemplateAsync(ct) : GetBlockTemplateFromJson(json);
 
-            //// may happen if daemon is currently not connected to peers
-            //if(response.Error != null)
-            //{
-            //    logger.Warn(() => $"Unable to update job. Daemon responded with: {response.Error.Message} Code {response.Error.Code}");
-            //    return false;
-            //}
+            if(response == null || response.GetBlockTemplateResponse == null || response.GetBlockTemplateResponse.Error != null)
+            {
+                logger.Warn(() => $"Unable to update job. Daemon responded with: {response.GetBlockTemplateResponse.Error.Message}");
+                return false;
+            }
 
-            //var blockTemplate = response.Response;
-            //var job = currentJob;
-            //var newHash = blockTemplate.Blob.HexToByteArray().AsSpan().Slice(7, 32).ToHexString();
+            var blockTemplate = response.GetBlockTemplateResponse;
 
-            //var isNew = job == null || newHash != job.PrevHash;
+            if (!blockTemplate.IsSynced)
+            {
+                logger.Warn(() => $"Unable to update job. Daemon is not synced");
+                return false;
+            }
 
-            //if(isNew)
-            //{
-            //    messageBus.NotifyChainHeight(poolConfig.Id, blockTemplate.Height, poolConfig.Template);
+            var block = blockTemplate.Block;
+            
+            var job = currentJob;
 
-            //    if(via != null)
-            //        logger.Info(() => $"Detected new block {blockTemplate.Height} [{via}]");
-            //    else
-            //        logger.Info(() => $"Detected new block {blockTemplate.Height}");
+            var newHash = KaspaJob.HashBlock(block, true);
+            var isNew = job == null || newHash != job.PrevHash;
 
-            //    UpdateHashParams(blockTemplate);
+            if(isNew)
+            {
+                if(via != null)
+                    logger.Info(() => $"Detected new block {newHash} [{via}]");
+                else
+                    logger.Info(() => $"Detected new block {newHash}");
 
-            //    // init job
-            //    job = new CryptonoteJob(blockTemplate, instanceId, NextJobId(), coin, poolConfig, clusterConfig, newHash, randomXRealm);
-            //    currentJob = job;
+                job = new KaspaJob(block, NextJobId(), newHash);
+                
+                currentJob = job;
 
-            //    // update stats
-            //    BlockchainStats.LastNetworkBlockTime = clock.Now;
-            //    BlockchainStats.BlockHeight = job.BlockTemplate.Height;
-            //    BlockchainStats.NetworkDifficulty = job.BlockTemplate.Difficulty;
-            //    BlockchainStats.NextNetworkTarget = "";
-            //    BlockchainStats.NextNetworkBits = "";
-            //}
+                BlockchainStats.LastNetworkBlockTime = clock.Now;
+                // BlockchainStats.BlockHeight = job.BlockTemplate.Height;
+                // BlockchainStats.NetworkDifficulty = TODO calculate based on block.Header.Bits
+                BlockchainStats.NextNetworkTarget = "";
+                BlockchainStats.NextNetworkBits = "";
+            }
 
-            //else
-            //{
-            //    if(via != null)
-            //        logger.Debug(() => $"Template update {blockTemplate.Height} [{via}]");
-            //    else
-            //        logger.Debug(() => $"Template update {blockTemplate.Height}");
-            //}
-
-            //return isNew;
+            return isNew;
         }
 
         catch(OperationCanceledException)
@@ -111,22 +107,19 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         return false;
     }
 
-    //private async Task<RpcResponse<GetBlockTemplateResponse>> GetBlockTemplateAsync(CancellationToken ct)
-    //{
-    //    var request = new GetBlockTemplateRequest
-    //    {
-    //        PayAddress = poolConfig.Address,
-    //    };
+    private async Task<KaspadMessage> GetBlockTemplateAsync(CancellationToken ct)
+    {
+        var request = new KaspadMessage();
+        request.GetBlockTemplateRequest = new GetBlockTemplateRequestMessage();
+        request.GetBlockTemplateRequest.PayAddress = poolConfig.Address;
+        request.GetBlockTemplateRequest.ExtraData = "wer dies liest ist doof :D";
+        return await grpc.ExecuteAsync(logger, request, ct);
+    }
 
-    //    return await rpc.ExecuteAsync<GetBlockTemplateResponse>(logger, KaspaCommands.GetBlockTemplate, ct, request);
-    //}
-
-    //private RpcResponse<GetBlockTemplateResponse> GetBlockTemplateFromJson(string json)
-    //{
-    //    var result = JsonConvert.DeserializeObject<JsonRpcResponse>(json);
-
-    //    return new RpcResponse<GetBlockTemplateResponse>(result.ResultAs<GetBlockTemplateResponse>());
-    //}
+    private KaspadMessage GetBlockTemplateFromJson(string json)
+    {
+        return KaspadMessage.Parser.ParseJson(json);
+    }
 
     private async Task UpdateNetworkStatsAsync(CancellationToken ct)
     {
@@ -200,29 +193,22 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         if(string.IsNullOrEmpty(address))
             return false;
 
-        var addressPrefix = CryptonoteBindings.DecodeAddress(address);
-        var addressIntegratedPrefix = CryptonoteBindings.DecodeIntegratedAddress(address);
-        var coin = poolConfig.Template.As<CryptonoteCoinTemplate>();
-
         switch(networkType)
         {
-            //case KaspaNetworkType.Main:
-            //    if(addressPrefix != coin.AddressPrefix &&
-            //       addressIntegratedPrefix != coin.AddressPrefixIntegrated)
-            //        return false;
-            //    break;
+            case KaspaNetworkType.Main:
+                if(!address.ToLower().StartsWith("kaspa"))
+                    return false;
+                break;
 
-            //case KaspaNetworkType.Test:
-            //    if(addressPrefix != coin.AddressPrefixTestnet &&
-            //       addressIntegratedPrefix != coin.AddressPrefixIntegratedTestnet)
-            //        return false;
-            //    break;
+            case KaspaNetworkType.Test:
+                if(!address.ToLower().StartsWith("kaspatest"))
+                    return false;
+                break;
 
-            //case KaspaNetworkType.Stage:
-            //    if(addressPrefix != coin.AddressPrefixStagenet &&
-            //       addressIntegratedPrefix != coin.AddressPrefixIntegratedStagenet)
-            //        return false;
-            //    break;
+            case KaspaNetworkType.Dev:
+                if(!address.ToLower().StartsWith("kaspadev"))
+                    return false;
+                break;
         }
 
         return true;
@@ -230,21 +216,21 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
     public BlockchainStats BlockchainStats { get; } = new();
 
-    //public void PrepareWorkerJob(CryptonoteWorkerJob workerJob, out string blob, out string target)
-    //{
-    //    blob = null;
-    //    target = null;
+    public void PrepareWorkerJob(KaspaWorkerJob workerJob, out BigInteger[] jobs , out long timestamp)
+    {
+        jobs = null;
+        timestamp = 0;
 
-    //    var job = currentJob;
+        var job = currentJob;
 
-    //    if(job != null)
-    //    {
-    //        lock(job)
-    //        {
-    //            job.PrepareWorkerJob(workerJob, out blob, out target);
-    //        }
-    //    }
-    //}
+        if(job != null)
+        {
+            lock(job)
+            {
+                job.PrepareWorkerJob(workerJob, out jobs, out timestamp);
+            }
+        }
+    }
 
     //public async ValueTask<Share> SubmitShareAsync(StratumConnection worker,
     //    CryptonoteSubmitShareRequest request, CryptonoteWorkerJob workerJob, CancellationToken ct)
@@ -451,10 +437,24 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
             blockSubmission.Select(x => (JobRefreshBy.BlockFound, (string) null))
         };
 
-        // get initial blocktemplate
-        triggers.Add(Observable.Interval(TimeSpan.FromMilliseconds(1000))
-            .Select(_ => (JobRefreshBy.Initial, (string) null))
-            .TakeWhile(_ => !hasInitialBlockTemplate));
+        if(poolConfig.BlockRefreshInterval > 0)
+        {
+            // periodically update block-template
+            var pollingInterval = poolConfig.BlockRefreshInterval > 0 ? poolConfig.BlockRefreshInterval : 1000;
+
+            triggers.Add(Observable.Timer(TimeSpan.FromMilliseconds(pollingInterval))
+                .TakeUntil(pollTimerRestart)
+                .Select(_ => (JobRefreshBy.Poll, (string) null))
+                .Repeat());
+        }
+
+        else
+        {
+            // get initial blocktemplate
+            triggers.Add(Observable.Interval(TimeSpan.FromMilliseconds(1000))
+                .Select(_ => (JobRefreshBy.Initial, (string) null))
+                .TakeWhile(_ => !hasInitialBlockTemplate));
+        }
 
         Blocks = triggers.Merge()
             .Select(x => Observable.FromAsync(() => UpdateJob(ct, x.Via, x.Data)))
