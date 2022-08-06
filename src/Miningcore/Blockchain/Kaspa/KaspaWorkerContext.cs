@@ -14,5 +14,13 @@ public class KaspaWorkerContext : WorkerContextBase
     /// </summary>
     public string Worker { get; set; }
 
+    /// <summary>
+    /// Unique value assigned per worker
+    /// </summary>
+    public string ExtraNonce1 { get; set; }
+
+    /// <summary>
+    /// BZMiner uses different stratum messages, it has EthereumStratum in request
+    /// </summary>
     public Boolean EthereumStratumVariant { get; set; } = false;
 }
