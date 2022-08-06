@@ -30,5 +30,5 @@ public class KaspaStratumMethods
     /// <summary>
     /// Reported hashrate 
     /// </summary>
-    public const string Hashrate = "mining.hashrate";
+    public const string SubmitHashrate = "mining.submit_hashrate";
 }
