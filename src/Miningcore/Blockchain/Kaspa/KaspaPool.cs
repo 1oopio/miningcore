@@ -5,15 +5,11 @@ using System.Reactive.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Microsoft.IO;
-using Miningcore.Blockchain.Cryptonote.StratumRequests;
-using Miningcore.Blockchain.Cryptonote.StratumResponses;
 using Miningcore.Configuration;
 using Miningcore.JsonRpc;
 using Miningcore.Messaging;
 using Miningcore.Mining;
 using Miningcore.Nicehash;
-using Miningcore.Notifications.Messages;
-using Miningcore.Payments;
 using Miningcore.Persistence;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Stratum;
@@ -43,162 +39,130 @@ public class KaspaPool : PoolBase
 
     private KaspaJobManager manager;
 
-    private async Task OnLoginAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
+    private async Task OnSubscribeAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
     {
-        //var request = tsRequest.Value;
-        //var context = connection.ContextAs<CryptonoteWorkerContext>();
+        var request = tsRequest.Value;
+        var context = connection.ContextAs<KaspaWorkerContext>();
 
-        //if(request.Id == null)
-        //    throw new StratumException(StratumError.MinusOne, "missing request id");
+        if(request.Id == null)
+            throw new StratumException(StratumError.Other, "missing request id");
 
-        //var loginRequest = request.ParamsAs<CryptonoteLoginRequest>();
+        var requestParams = request.ParamsAs<string[]>();
 
-        //if(string.IsNullOrEmpty(loginRequest?.Login))
-        //    throw new StratumException(StratumError.MinusOne, "missing login");
+        if(requestParams == null || requestParams.Length < 1 || requestParams.Any(string.IsNullOrEmpty))
+            throw new StratumException(StratumError.MinusOne, "invalid request");
 
-        //// extract worker/miner/paymentid
-        //var split = loginRequest.Login.Split('.');
-        //context.Miner = split[0].Trim();
-        //context.Worker = split.Length > 1 ? split[1].Trim() : null;
-        //context.UserAgent = loginRequest.UserAgent?.Trim();
+        context.UserAgent = requestParams.FirstOrDefault()?.Trim();
 
-        //var addressToValidate = context.Miner;
+        if(requestParams.Length >= 2 && requestParams[1] == "EthereumStratum/1.0.0")
+        {
+            var data = new object[]
+            {
+                    new object[]
+                    {
+                        KaspaStratumMethods.MiningNotify,
+                        connection.ConnectionId,
+                        "EthereumStratum/1.0.0"
+                    },
+                    "0000" // Extra nonce
+            }
+            .ToArray();
 
-        //// extract paymentid
-        //var index = context.Miner.IndexOf('#');
-        //if(index != -1)
-        //{
-        //    var paymentId = context.Miner[(index + 1)..].Trim();
+            var response = new JsonRpcResponse<object[]>(data, request.Id);
+            await connection.RespondAsync(response);
+        }
+        else
+        {
+            await connection.RespondAsync(true, request.Id);
+        }
 
-        //    // validate
-        //    if(!string.IsNullOrEmpty(paymentId) && paymentId.Length != CryptonoteConstants.PaymentIdHexLength)
-        //        throw new StratumException(StratumError.MinusOne, "invalid payment id");
-
-        //    // re-append to address
-        //    addressToValidate = context.Miner[..index].Trim();
-        //    context.Miner = addressToValidate + PayoutConstants.PayoutInfoSeperator + paymentId;
-        //}
-
-        //// validate login
-        //var result = manager.ValidateAddress(addressToValidate);
-
-        //context.IsSubscribed = result;
-        //context.IsAuthorized = result;
-
-        //if(context.IsAuthorized)
-        //{
-        //    // extract control vars from password
-        //    var passParts = loginRequest.Password?.Split(PasswordControlVarsSeparator);
-        //    var staticDiff = GetStaticDiffFromPassparts(passParts);
-
-        //    // Nicehash support
-        //    var nicehashDiff = await GetNicehashStaticMinDiff(context, manager.Coin.Name, manager.Coin.GetAlgorithmName());
-
-        //    if(nicehashDiff.HasValue)
-        //    {
-        //        if(!staticDiff.HasValue || nicehashDiff > staticDiff)
-        //        {
-        //            logger.Info(() => $"[{connection.ConnectionId}] Nicehash detected. Using API supplied difficulty of {nicehashDiff.Value}");
-
-        //            staticDiff = nicehashDiff;
-        //        }
-
-        //        else
-        //            logger.Info(() => $"[{connection.ConnectionId}] Nicehash detected. Using miner supplied difficulty of {staticDiff.Value}");
-        //    }
-
-        //    // Static diff
-        //    if(staticDiff.HasValue &&
-        //       (context.VarDiff != null && staticDiff.Value >= context.VarDiff.Config.MinDiff ||
-        //           context.VarDiff == null && staticDiff.Value > context.Difficulty))
-        //    {
-        //        context.VarDiff = null; // disable vardiff
-        //        context.SetDifficulty(staticDiff.Value);
-
-        //        logger.Info(() => $"[{connection.ConnectionId}] Static difficulty set to {staticDiff.Value}");
-        //    }
-
-        //    // respond
-        //    var loginResponse = new CryptonoteLoginResponse
-        //    {
-        //        Id = connection.ConnectionId,
-        //        Job = CreateWorkerJob(connection)
-        //    };
-
-        //    await connection.RespondAsync(loginResponse, request.Id);
-
-        //    // log association
-        //    if(!string.IsNullOrEmpty(context.Worker))
-        //        logger.Info(() => $"[{connection.ConnectionId}] Authorized worker {context.Worker}@{context.Miner}");
-        //    else
-        //        logger.Info(() => $"[{connection.ConnectionId}] Authorized miner {context.Miner}");
-        //}
-
-        //else
-        //{
-        //    await connection.RespondErrorAsync(StratumError.MinusOne, "invalid login", request.Id);
-
-        //    if(clusterConfig?.Banning?.BanOnLoginFailure is null or true)
-        //    {
-        //        logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {context.Miner} for {loginFailureBanTimeout.TotalSeconds} sec");
-
-        //        banManager.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
-
-        //        Disconnect(connection);
-        //    }
-        //}
+        // setup worker context
+        context.IsSubscribed = true;
     }
 
-    private async Task OnGetJobAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
+    private async Task OnAuthorizeAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
     {
-        //var request = tsRequest.Value;
-        //var context = connection.ContextAs<CryptonoteWorkerContext>();
+        var request = tsRequest.Value;
+        var context = connection.ContextAs<KaspaWorkerContext>();
 
-        //if(request.Id == null)
-        //    throw new StratumException(StratumError.MinusOne, "missing request id");
+        if(request.Id == null)
+            throw new StratumException(StratumError.MinusOne, "missing request id");
 
-        //var getJobRequest = request.ParamsAs<CryptonoteGetJobRequest>();
+        var requestParams = request.ParamsAs<string[]>();
+        var workerValue = requestParams?.Length > 0 ? requestParams[0] : "0";
+        var password = requestParams?.Length > 1 ? requestParams[1] : null;
+        var passParts = password?.Split(PasswordControlVarsSeparator);
 
-        //// validate worker
-        //if(connection.ConnectionId != getJobRequest?.WorkerId || !context.IsAuthorized)
-        //    throw new StratumException(StratumError.MinusOne, "unauthorized");
+        // extract worker/miner
+        var workerParts = workerValue?.Split('.');
+        var minerName = workerParts?.Length > 0 ? workerParts[0].Trim() : null;
+        var workerName = workerParts?.Length > 1 ? workerParts[1].Trim() : "0";
 
-        //// respond
-        //var job = CreateWorkerJob(connection);
-        //await connection.RespondAsync(job, request.Id);
+        context.IsAuthorized = manager.ValidateAddress(minerName);
+
+        // respond
+        await connection.RespondAsync(context.IsAuthorized, request.Id);
+
+        if(context.IsAuthorized)
+        {
+            context.Miner = minerName?.ToLower();
+            context.Worker = workerName;
+
+            // extract control vars from password
+            var staticDiff = GetStaticDiffFromPassparts(passParts);
+
+            // Static diff
+            if(staticDiff.HasValue &&
+               (context.VarDiff != null && staticDiff.Value >= context.VarDiff.Config.MinDiff ||
+                   context.VarDiff == null && staticDiff.Value > context.Difficulty))
+            {
+                context.VarDiff = null; // disable vardiff
+                context.SetDifficulty(staticDiff.Value);
+
+                logger.Info(() => $"[{connection.ConnectionId}] Setting static difficulty of {staticDiff.Value}");
+            }
+
+            //await connection.NotifyAsync(KaspaStratumMethods.SetExtranonce, xx);
+            await connection.NotifyAsync(KaspaStratumMethods.SetDifficulty, new object[] { context.Difficulty });
+
+            logger.Info(() => $"[{connection.ConnectionId}] Authorized worker {workerValue}");
+        }
+
+        else
+        {
+            if(clusterConfig?.Banning?.BanOnLoginFailure is null or true)
+            {
+                logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {minerName} for {loginFailureBanTimeout.TotalSeconds} sec");
+
+                banManager.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
+
+                Disconnect(connection);
+            }
+        }
     }
 
-    //private CryptonoteJobParams CreateWorkerJob(StratumConnection connection)
-    //{
-    //    var context = connection.ContextAs<CryptonoteWorkerContext>();
-    //    var job = new CryptonoteWorkerJob(NextJobId(), context.Difficulty);
+    private object[] CreateWorkerJob(StratumConnection connection)
+    {
+        var context = connection.ContextAs<KaspaWorkerContext>();
+        var job = new KaspaWorkerJob(NextJobId(), context.Difficulty);
 
-    //    manager.PrepareWorkerJob(job, out var blob, out var target);
+        manager.PrepareWorkerJob(job, out var jobs, out var timestamp);
 
-    //    // should never happen
-    //    if(string.IsNullOrEmpty(blob) || string.IsNullOrEmpty(blob))
-    //        return null;
+        var result = new object[]
+        {
+            job.Id,
+            jobs,
+            timestamp
+        };
 
-    //    var result = new CryptonoteJobParams
-    //    {
-    //        JobId = job.Id,
-    //        Blob = blob,
-    //        Target = target,
-    //        Height = job.Height,
-    //        SeedHash = job.SeedHash,
-    //    };
+        // update context
+        lock(context)
+        {
+            //context.AddJob(job);
+        }
 
-    //    if(!string.IsNullOrEmpty(minerAlgo))
-    //        result.Algorithm = minerAlgo;
-
-    //    // update context
-    //    lock(context)
-    //    {
-    //        context.AddJob(job);
-    //    }
-
-    //    return result;
-    //}
+        return result;
+    }
 
     private async Task OnSubmitAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
@@ -290,12 +254,12 @@ public class KaspaPool : PoolBase
     {
         logger.Info(() => "Broadcasting jobs");
 
-        //await Guard(() => ForEachMinerAsync(async (connection, ct) =>
-        //{
-        //    // send job
-        //    var job = CreateWorkerJob(connection);
-        //    await connection.NotifyAsync(CryptonoteStratumMethods.JobNotify, job);
-        //}));
+        await Guard(() => ForEachMinerAsync(async (connection, ct) =>
+        {
+            // send job
+            var job = CreateWorkerJob(connection);
+            await connection.NotifyAsync(KaspaStratumMethods.MiningNotify, job);
+        }));
     }
 
     #region Overrides
@@ -352,23 +316,15 @@ public class KaspaPool : PoolBase
         {
             switch(request.Method)
             {
-                //case CryptonoteStratumMethods.Login:
-                //    await OnLoginAsync(connection, tsRequest);
-                //    break;
-
-                //case CryptonoteStratumMethods.GetJob:
-                //    await OnGetJobAsync(connection, tsRequest);
-                //    break;
-
-                //case CryptonoteStratumMethods.Submit:
-                //    await OnSubmitAsync(connection, tsRequest, ct);
-                //    break;
-
-                //case CryptonoteStratumMethods.KeepAlive:
-                //    // recognize activity
-                //    context.LastActivity = clock.Now;
-                //    break;
-
+                case KaspaStratumMethods.Subscribe:
+                    await OnSubscribeAsync(connection, tsRequest);
+                    break;
+                case KaspaStratumMethods.Authorize:
+                    await OnAuthorizeAsync(connection, tsRequest);
+                    break;
+                case KaspaStratumMethods.SubmitShare:
+                    await OnSubmitAsync(connection, tsRequest, ct);
+                    break;
                 default:
                     logger.Debug(() => $"[{connection.ConnectionId}] Unsupported RPC request: {JsonConvert.SerializeObject(request, serializerSettings)}");
 
@@ -398,8 +354,8 @@ public class KaspaPool : PoolBase
         if(connection.Context.ApplyPendingDifficulty())
         {
             // re-send job
-            //var job = CreateWorkerJob(connection);
-            //await connection.NotifyAsync(CryptonoteStratumMethods.JobNotify, job);
+            var job = CreateWorkerJob(connection);
+            await connection.NotifyAsync(KaspaStratumMethods.MiningNotify, job);
         }
     }
 
