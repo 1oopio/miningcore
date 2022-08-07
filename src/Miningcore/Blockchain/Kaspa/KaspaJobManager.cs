@@ -79,7 +79,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
             
             var job = currentJob;
 
-            var newHash = KaspaJob.HashBlock(block, true);
+            var newHash = KaspaJob.HashBlock(block, true).ToHexString();
             var isNew = job == null || newHash != job.PrevHash;
 
             if(isNew)
@@ -106,7 +106,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
                 BlockchainStats.LastNetworkBlockTime = clock.Now;
                 BlockchainStats.BlockHeight = block.Header.BlueScore; // Not really height, but we have nothing else
-                BlockchainStats.NetworkDifficulty = job.EncodeTarget();
+                BlockchainStats.NetworkDifficulty = job.DifficultyFromTargetBits();
                 BlockchainStats.NextNetworkTarget = "";
                 BlockchainStats.NextNetworkBits = "";
             }
