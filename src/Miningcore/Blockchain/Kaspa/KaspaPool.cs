@@ -258,8 +258,7 @@ public class KaspaPool : PoolBase
             // telemetry
             PublishTelemetry(TelemetryCategory.Share, clock.Now - tsRequest.Timestamp.UtcDateTime, true);
 
-            //logger.Info(() => $"[{connection.ConnectionId}] Share accepted: D={Math.Round(share.Difficulty / EthereumConstants.Pow2x32, 3)}");
-            logger.Info(() => $"[{connection.ConnectionId}] Share accepted: FART");
+            logger.Info(() => $"[{connection.ConnectionId}] Share accepted:  D={share.Difficulty}");
 
             // update pool stats
             if(share.IsBlockCandidate)
@@ -402,9 +401,7 @@ public class KaspaPool : PoolBase
 
         if(connection.Context.ApplyPendingDifficulty())
         {
-            // re-send job
-            var job = CreateWorkerJob(connection);
-            await connection.NotifyAsync(KaspaStratumMethods.MiningNotify, job);
+            await connection.NotifyAsync(KaspaStratumMethods.SetDifficulty, new object[] { connection.Context.Difficulty });
         }
     }
 
