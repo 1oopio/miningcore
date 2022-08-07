@@ -1,25 +1,18 @@
-using System.Globalization;
 using System.Reactive;
 using System.Reactive.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using Autofac;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
-using Miningcore.JsonRpc;
 using Miningcore.Messaging;
 using Miningcore.Mining;
-using Miningcore.Native;
 using Miningcore.Notifications.Messages;
-using Miningcore.Rpc;
 using Miningcore.Stratum;
 using Miningcore.Time;
 using Miningcore.Util;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using NLog;
 using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
+using Miningcore.Blockchain.Kaspa.RPC.Messages;
 using Miningcore.Blockchain.Kaspa.RPC;
 using BigInteger = System.Numerics.BigInteger;
 
@@ -46,7 +39,9 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
     }
 
     private DaemonEndpointConfig[] daemonEndpoints;
-    private KaspaGrpcClient grpc;
+    private DaemonEndpointConfig[] walletDaemonEndpoints;
+    private KaspaGrpcRPCClient grpc;
+    private KaspaGrpcWalletClient grpcWallet;
     private readonly IMasterClock clock;
     private KaspaNetworkType networkType;
     private readonly IExtraNonceProvider extraNonceProvider;
@@ -208,6 +203,17 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
             .Where(x => string.IsNullOrEmpty(x.Category))
             .ToArray();
 
+        if(cc.PaymentProcessing?.Enabled == true && pc.PaymentProcessing?.Enabled == true)
+        {
+            // extract wallet daemon endpoints
+            walletDaemonEndpoints = pc.Daemons
+                .Where(x => x.Category?.ToLower() == KaspaConstants.WalletDaemonCategory)
+                .ToArray();
+
+            if(walletDaemonEndpoints.Length == 0)
+                throw new PoolStartupException("Wallet-RPC daemon is not configured (Daemon configuration for monero-pools require an additional entry of category \'wallet' pointing to the wallet daemon)", pc.Id);
+        }
+
         ConfigureDaemons();
     }
 
@@ -285,7 +291,6 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         share.Worker = context.Worker;
         share.UserAgent = context.UserAgent;
         share.Source = clusterConfig.ClusterName;
-        //share.NetworkDifficulty = job.BlockTemplate.Difficulty;
         share.Created = clock.Now;
 
         // if block candidate, submit & check if accepted by network
@@ -328,7 +333,13 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
     protected override void ConfigureDaemons()
     {
-        grpc = new KaspaGrpcClient(daemonEndpoints.First(), messageBus, poolConfig.Id);
+        grpc = new KaspaGrpcRPCClient(daemonEndpoints.First(), messageBus, poolConfig.Id);
+
+        if(clusterConfig.PaymentProcessing?.Enabled == true && poolConfig.PaymentProcessing?.Enabled == true)
+        {
+            // also setup wallet daemon
+            grpcWallet = new KaspaGrpcWalletClient(walletDaemonEndpoints.First(), messageBus, poolConfig.Id);
+        }
     }
 
     protected override async Task<bool> AreDaemonsHealthyAsync(CancellationToken ct)
@@ -397,11 +408,29 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
         if(clusterConfig.PaymentProcessing?.Enabled == true && poolConfig.PaymentProcessing?.Enabled == true)
         {
-            //var addressResponse = await walletRpc.ExecuteAsync<GetAddressResponse>(logger, CryptonoteWalletCommands.GetAddress, ct);
+            var addressResponse = await grpcWallet.ShowAddressesAsync(logger, ct);
+            var found = false;
 
-            //// ensure pool owns wallet
-            //if(clusterConfig.PaymentProcessing?.Enabled == true && addressResponse.Response?.Address != poolConfig.Address)
-            //    throw new PoolStartupException($"Wallet-Daemon does not own pool-address '{poolConfig.Address}'", poolConfig.Id);
+            if (addressResponse != null)
+            {
+                foreach(var address in addressResponse.Address)
+                {
+                    if (address == poolConfig.Address)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                throw new PoolStartupException($"Init gRPC for Wallet-Daemon failed", poolConfig.Id);
+            }
+
+            if (!found)
+            {
+                throw new PoolStartupException($"Wallet-Daemon does not own pool-address '{poolConfig.Address}'", poolConfig.Id);
+            }
         }
 
         // chain detection
@@ -418,36 +447,29 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
                 case "testnet":
                     networkType = KaspaNetworkType.Test;
                     break;
-                case "simnet":
-                    networkType = KaspaNetworkType.Sim;
-                    break;
                 default:
                     throw new PoolStartupException($"Unsupport net type '{response.GetCurrentNetworkResponse.CurrentNetwork}'", poolConfig.Id);
             }
         }
 
         //// address validation
-        //poolAddressBase58Prefix = CryptonoteBindings.DecodeAddress(poolConfig.Address);
-        //if(poolAddressBase58Prefix == 0)
-        //    throw new PoolStartupException("Unable to decode pool-address", poolConfig.Id);
+        switch(networkType)
+        {
+            case KaspaNetworkType.Main:
+                if(!poolConfig.Address.ToLower().StartsWith("kaspa"))
+                    throw new PoolStartupException($"Invalid pool address, should start with kaspa", poolConfig.Id);
+                break;
 
-        //switch(networkType)
-        //{
-        //    case CryptonoteNetworkType.Main:
-        //        if(poolAddressBase58Prefix != coin.AddressPrefix)
-        //            throw new PoolStartupException($"Invalid pool address prefix. Expected {coin.AddressPrefix}, got {poolAddressBase58Prefix}", poolConfig.Id);
-        //        break;
+            case KaspaNetworkType.Test:
+                if(!poolConfig.Address.ToLower().StartsWith("kaspatest"))
+                    throw new PoolStartupException($"Invalid pool address, should start with kaspatest", poolConfig.Id);
+                break;
 
-        //    case CryptonoteNetworkType.Stage:
-        //        if(poolAddressBase58Prefix != coin.AddressPrefixStagenet)
-        //            throw new PoolStartupException($"Invalid pool address prefix. Expected {coin.AddressPrefixStagenet}, got {poolAddressBase58Prefix}", poolConfig.Id);
-        //        break;
-
-        //    case CryptonoteNetworkType.Test:
-        //        if(poolAddressBase58Prefix != coin.AddressPrefixTestnet)
-        //            throw new PoolStartupException($"Invalid pool address prefix. Expected {coin.AddressPrefixTestnet}, got {poolAddressBase58Prefix}", poolConfig.Id);
-        //        break;
-        //}
+            case KaspaNetworkType.Dev:
+                if(!poolConfig.Address.ToLower().StartsWith("kaspadev"))
+                    throw new PoolStartupException($"Invalid pool address, should start with kaspadev", poolConfig.Id);
+                break;
+        }
 
         // update stats
         BlockchainStats.RewardType = "POW";

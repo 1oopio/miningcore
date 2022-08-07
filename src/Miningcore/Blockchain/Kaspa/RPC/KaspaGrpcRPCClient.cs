@@ -1,32 +1,19 @@
-using System;
-using System.Net.Http;
-using System.Threading.Tasks;
 using Grpc.Net.Client;
 using Grpc.Core;
 using System.Diagnostics;
-using System.Net;
-using System.Net.Http.Headers;
-using System.Net.WebSockets;
-using System.Reactive.Disposables;
-using System.Reactive.Linq;
-using System.Text;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
-using Miningcore.JsonRpc;
 using Miningcore.Messaging;
 using Miningcore.Notifications.Messages;
-using Miningcore.Util;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using NLog;
-using ZeroMQ;
 using Contract = Miningcore.Contracts.Contract;
+using Miningcore.Blockchain.Kaspa.RPC.Messages;
 
 
 namespace Miningcore.Blockchain.Kaspa.RPC;
-public class KaspaGrpcClient
+public class KaspaGrpcRPCClient
 {
-    public KaspaGrpcClient(DaemonEndpointConfig endPoint, IMessageBus messageBus, string poolId)
+    public KaspaGrpcRPCClient(DaemonEndpointConfig endPoint, IMessageBus messageBus, string poolId)
     {
         Contract.RequiresNonNull(messageBus);
         Contract.Requires<ArgumentException>(!string.IsNullOrEmpty(poolId));
@@ -40,17 +27,20 @@ public class KaspaGrpcClient
     private readonly IMessageBus messageBus;
     private readonly string poolId;
 
-
     public async Task<KaspadMessage> ExecuteAsync(ILogger logger, KaspadMessage reqMessage, CancellationToken ct, bool throwOnError = false)
     {
+        var sw = Stopwatch.StartNew();
+
         AsyncDuplexStreamingCall<KaspadMessage, KaspadMessage> stream = null;
 
         try
         {
+            var method = reqMessage.PayloadCase.ToString();
             var protocol = config.Ssl ? Uri.UriSchemeHttps : Uri.UriSchemeHttp;
             var requestUrl = $"{protocol}://{config.Host}:{config.Port}";
             var channel = GrpcChannel.ForAddress(requestUrl);
-            var client = new RPC.RPCClient(channel);
+            var client = new Messages.RPC.RPCClient(channel);
+
             stream = client.MessageStream(null, null);
 
             logger.Trace(() => $"Sending gRPC request to {requestUrl}: {reqMessage}");
@@ -62,7 +52,7 @@ public class KaspaGrpcClient
                 logger.Trace(() => $"Received gRPC response: {response}");
                 stream.Dispose();
 
-                // messageBus.SendTelemetry(poolId, TelemetryCategory.RpcRequest, method, sw.Elapsed, response.IsSuccessStatusCode);
+                messageBus.SendTelemetry(poolId, TelemetryCategory.RpcRequest, method, sw.Elapsed, response != null && response.PayloadCase != 0);
                 return response;
             }
 
