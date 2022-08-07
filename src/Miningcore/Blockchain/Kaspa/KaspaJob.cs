@@ -6,6 +6,9 @@ using Miningcore.Blockchain.Kaspa.RPC;
 using Miningcore.Stratum;
 using System.Collections.Concurrent;
 using BigInteger = System.Numerics.BigInteger;
+using NBitcoin;
+using Miningcore.Util;
+using Org.BouncyCastle.Crypto.Digests;
 
 namespace Miningcore.Blockchain.Kaspa;
 
@@ -23,6 +26,7 @@ public class KaspaJob
     }
 
     private static readonly Blake2b hasher = new Blake2b();
+    private static readonly HeavyHash heavyHasher = new HeavyHash();
 
     protected bool RegisterSubmit( string nonce)
     {
@@ -49,7 +53,7 @@ public class KaspaJob
         timestamp = Block.Header.Timestamp;
     }
 
-    public static string HashBlock(RpcBlock block, Boolean prePow)
+    public static byte[] HashBlock(RpcBlock block, Boolean prePow)
     {
         IntPtr blakeState = hasher.InitKey(32, Encoding.ASCII.GetBytes("BlockHash"));
 
@@ -94,7 +98,33 @@ public class KaspaJob
         Span<byte> hash = stackalloc byte[32];
         hasher.Final(blakeState, hash);
 
-        return hash.ToHexString();
+        return hash.ToArray();
+    }
+
+    public static byte[] PowHashBlock(RpcBlock block)
+    {
+        var preHash = HashBlock(block, true);
+
+        // PRE_POW_HASH || TIME || 32 zero byte padding || NONCE
+        var cShakeDigest = new CShakeDigest(256, null, Encoding.ASCII.GetBytes("ProofOfWorkHash"));
+        cShakeDigest.BlockUpdate(preHash, 0, 32);
+        cShakeDigest.BlockUpdate(BitConverter.GetBytes((Int64) (block.Header.Timestamp)), 0, 8);
+        cShakeDigest.BlockUpdate("0000000000000000000000000000000000000000000000000000000000000000".HexToByteArray(), 0, 32);
+        cShakeDigest.BlockUpdate(BitConverter.GetBytes((UInt64) (block.Header.Nonce)), 0, 8);
+        var powHash = new byte[32];
+        cShakeDigest.DoFinal(powHash, 0, 32);
+
+        var heavyHash = new byte[32];
+        var heavyHasher = new HeavyHash();
+        heavyHasher.Digest(powHash, heavyHash, new object[] { preHash });
+
+
+        var cShakeDigest2 = new CShakeDigest(256, null, Encoding.ASCII.GetBytes("HeavyHash"));
+        cShakeDigest2.BlockUpdate(heavyHash, 0, 32);
+        var hashFinal = new byte[32];
+        cShakeDigest2.DoFinal(hashFinal, 0, 32);
+
+        return hashFinal;
     }
 
     public static BigInteger[] JobData(string hash)
@@ -111,22 +141,26 @@ public class KaspaJob
         return preHashU64s.ToArray();
     }
 
-    public Double EncodeTarget()
+    public BigInteger EncodeTarget()
     {
         var bits = new BigInteger(Block.Header.Bits);
-        Int32 unshiftedExpt = (Int32) (bits >> 24);
-        var mant = bits & 1850408; //FFFFFF
-        Int32 expt = 0;
+        var mant = bits & 0xFFFFFF;
+        Int32 expt = (Int32) (bits >> 24);
 
-        if (unshiftedExpt <= new BigInteger(3))
+        if (expt <= new BigInteger(3))
         {
-            mant = mant >> (8 * (3 - unshiftedExpt));
+            mant = mant >> (8 * (3 - expt));
             expt = 0;
         } else
         {
             expt = (Int32) (8 * ((bits >> 24) - 3));
         }
-        return (double)((BigInteger.Pow(2, 255) / (mant << expt)) / BigInteger.Pow(2, 31));
+        return (mant << expt);
+    }
+
+    public Double DifficultyFromTargetBits()
+    {
+        return (Math.Pow(2, 255) / ((double) EncodeTarget())) / Math.Pow(2, 31);
     }
 
     public (Share Share, RpcBlock block) ProcessShare(string nonce, StratumConnection worker)
@@ -149,20 +183,50 @@ public class KaspaJob
 
         var block = Block.Clone();
         block.Header.Nonce = BitConverter.ToUInt64(nonce.HexToReverseByteArray().AsSpan());
+        var powHash = PowHashBlock(block);
 
-        var isBlockCandidate = true; // TODO
+        var x = powHash.ToHexString();
+
+        var headerValue = new uint256(powHash);
+        var targetValue = new uint256(EncodeTarget().ToByteArray().ToNewReverseArray().PadFront(0x00, 32).ToHexString());
+
+        var shareDiff = (double) new BigRational(KaspaConstants.Diff1, new BigInteger(powHash));
+        var stratumDifficulty = context.Difficulty;
+        var ratio = shareDiff / stratumDifficulty;
+
+        //// check if the share meets the much harder block difficulty (block candidate)
+        var isBlockCandidate = headerValue <= targetValue;
+
+        if(!isBlockCandidate && ratio < 0.99)
+        {
+            // check if share matched the previous difficulty from before a vardiff retarget
+            if(context.VarDiff?.LastUpdate != null && context.PreviousDifficulty.HasValue)
+            {
+                ratio = shareDiff / context.PreviousDifficulty.Value;
+
+                if(ratio < 0.99)
+                    throw new StratumException(StratumError.LowDifficultyShare, $"low difficulty share ({shareDiff})");
+
+                // use previous difficulty
+                stratumDifficulty = context.PreviousDifficulty.Value;
+            }
+
+            throw new StratumException(StratumError.LowDifficultyShare, $"low difficulty share ({shareDiff})");
+        }
 
         var result = new Share
         {
-            BlockHeight = (long)block.Header.BlueScore,
-            Difficulty = EncodeTarget()
+            BlockHeight = (long) block.Header.BlueScore,
+            NetworkDifficulty = DifficultyFromTargetBits(),
+            Difficulty = stratumDifficulty
         };
+
 
         if(isBlockCandidate)
         {
             // Fill in block-relevant fields
             result.IsBlockCandidate = true;
-            result.BlockHash = HashBlock(block, false);
+            result.BlockHash = HashBlock(block, false).ToHexString();
         }
 
         return (result, block);
