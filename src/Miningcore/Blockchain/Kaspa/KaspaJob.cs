@@ -2,7 +2,7 @@ using Miningcore.Extensions;
 using System.Text;
 using Miningcore.Crypto.Hashing.Algorithms;
 using Contract = Miningcore.Contracts.Contract;
-using Miningcore.Blockchain.Kaspa.RPC;
+using Miningcore.Blockchain.Kaspa.RPC.Messages;
 using Miningcore.Stratum;
 using System.Collections.Concurrent;
 using BigInteger = System.Numerics.BigInteger;
