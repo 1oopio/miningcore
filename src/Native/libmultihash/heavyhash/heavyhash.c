@@ -159,3 +159,41 @@ void heavyhash_hash(const char* input, char* output, uint32_t len)
     heavyhash(matrix, (void*)input, len, output);
 
 }
+
+void heavyhash_hash_seed(const char* input, const char* seed, char* output, uint32_t len, uint32_t seed_len)
+{
+    ALIGN(64) uint_fast16_t matrix[64][64];
+
+    if (seed_len != 32)
+    {
+        return;
+    }
+
+    struct xoshiro_state state;
+    for (int i = 0; i < 4; ++i)
+	{
+        state.s[i] = le64dec(seed + 8*i);
+    }
+
+    generate_matrix(matrix, &state);
+
+    ALIGN(32) uint_fast16_t vector[64];
+    ALIGN(32) uint_fast16_t product[64];
+
+    for (int i = 0; i < 32; ++i) {
+        vector[2 * i] = ((uint8_t)input[i] >> 4);
+        vector[2 * i + 1] = ((uint8_t)input[i] & 0xF);
+    }
+
+    for (int i = 0; i < 64; ++i) {
+        uint_fast16_t sum = 0;
+        for (int j = 0; j < 64; ++j) {
+            sum += matrix[i][j] * vector[j];
+        }
+        product[i] = (sum >> 10);
+    }
+
+    for (int i = 0; i < 32; ++i) {
+        output[i] = input[i] ^ ((product[2 * i] << 4) | (product[2 * i + 1]));
+    }
+}
