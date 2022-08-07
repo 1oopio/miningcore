@@ -26,7 +26,7 @@ public class KaspaJob
     }
 
     private static readonly Blake2b hasher = new Blake2b();
-    private static readonly HeavyHash heavyHasher = new HeavyHash();
+    private static readonly HeavyHashKaspa heavyHasher = new HeavyHashKaspa();
 
     protected bool RegisterSubmit( string nonce)
     {
@@ -115,9 +115,7 @@ public class KaspaJob
         cShakeDigest.DoFinal(powHash, 0, 32);
 
         var heavyHash = new byte[32];
-        var heavyHasher = new HeavyHash();
         heavyHasher.Digest(powHash, heavyHash, new object[] { preHash });
-
 
         var cShakeDigest2 = new CShakeDigest(256, null, Encoding.ASCII.GetBytes("HeavyHash"));
         cShakeDigest2.BlockUpdate(heavyHash, 0, 32);
@@ -184,8 +182,6 @@ public class KaspaJob
         var block = Block.Clone();
         block.Header.Nonce = BitConverter.ToUInt64(nonce.HexToReverseByteArray().AsSpan());
         var powHash = PowHashBlock(block);
-
-        var x = powHash.ToHexString();
 
         var headerValue = new uint256(powHash);
         var targetValue = new uint256(EncodeTarget().ToByteArray().ToNewReverseArray().PadFront(0x00, 32).ToHexString());
