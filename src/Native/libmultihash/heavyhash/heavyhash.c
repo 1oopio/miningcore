@@ -160,7 +160,7 @@ void heavyhash_hash(const char* input, char* output, uint32_t len)
 
 }
 
-void heavyhash_hash_seed(const char* input, const char* seed, char* output, uint32_t len, uint32_t seed_len)
+void heavyhash_hash_kaspa(const char* input, const char* seed, char* output, uint32_t len, uint32_t seed_len)
 {
     ALIGN(64) uint_fast16_t matrix[64][64];
 
