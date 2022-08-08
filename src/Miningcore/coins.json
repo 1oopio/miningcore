@@ -1396,6 +1396,22 @@
         "explorerTxLink": "http://157.245.248.32:3000/#/tx/{0}",
         "explorerAccountLink": "http://157.245.248.32:3000/#/address/{0}"
     },
+
+    "kaspa": {
+        "name": "Kaspa",
+        "canonicalName": "Kaspa",
+        "symbol": "KAS",
+        "family": "kaspa",
+        "website": "",
+        "market": "",
+        "twitter": "",
+        "telegram": "",
+        "discord": "",
+        "explorerBlockLink": "https://explorer.kaspa.org/blocks/$hash$",
+        "explorerTxLink": "https://explorer.kaspa.org/txs/tx/{0}",
+        "explorerAccountLink": "https://explorer.kaspa.org/addresses/{0}"
+    },
+
     "lanacoin": {
         "name": "Lanacoin",
         "canonicalName": "Lana",
@@ -4054,20 +4070,5 @@
         "explorerBlockLink": "https://explorer.ergoplatform.com/en/blocks/$hash$",
         "explorerTxLink": "https://explorer.ergoplatform.com/en/transactions/{0}",
         "explorerAccountLink": "https://explorer.ergoplatform.com/en/addresses/{0}"
-    },
-
-    "kaspa": {
-        "name": "Kaspa",
-        "canonicalName": "Kaspa",
-        "symbol": "KAS",
-        "family": "kaspa",
-        "website": "",
-        "market": "",
-        "twitter": "",
-        "telegram": "",
-        "discord": "",
-        "explorerBlockLink": "https://xxx/blocks/$hash$",
-        "explorerTxLink": "https://xxx/transactions/{0}",
-        "explorerAccountLink": "https://xxx/addresses/{0}"
     }
 }

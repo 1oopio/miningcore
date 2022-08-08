@@ -306,7 +306,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
                 OnBlockFound();
 
-                share.TransactionConfirmationData = share.BlockHash;
+                share.TransactionConfirmationData = nonce;
             }
 
             else
