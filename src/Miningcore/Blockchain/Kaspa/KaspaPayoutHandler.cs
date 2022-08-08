@@ -1,6 +1,7 @@
 using Autofac;
 using AutoMapper;
 using Miningcore.Configuration;
+using Miningcore.Extensions;
 using Miningcore.Messaging;
 using Miningcore.Mining;
 using Miningcore.Payments;
@@ -13,6 +14,8 @@ using Miningcore.Blockchain.Kaspa.RPC.Messages;
 using Miningcore.Blockchain.Kaspa.RPC;
 using Block = Miningcore.Persistence.Model.Block;
 using Contract = Miningcore.Contracts.Contract;
+using static Miningcore.Util.ActionUtils;
+using BigInteger = System.Numerics.BigInteger;
 
 namespace Miningcore.Blockchain.Kaspa;
 
@@ -79,6 +82,27 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         }
     }
 
+    private async Task<KaspadMessage> GetBlockAsync(NLog.ILogger logger, string hash, CancellationToken ct)
+    {
+        var request = new KaspadMessage();
+        request.GetBlockRequest = new GetBlockRequestMessage();
+        request.GetBlockRequest.Hash = hash;
+        request.GetBlockRequest.IncludeTransactions = true;
+        var response = await grpc.ExecuteAsync(logger, request, ct, true);
+
+        if (response == null || response.GetBlockResponse == null)
+        {
+            throw new Exception($"No result from node");
+        }
+
+        if (response.GetBlockResponse.Error != null && response.GetBlockResponse.Error.Message != null)
+        {
+            throw new Exception($"Got error from node: {response.GetBlockResponse.Error.Message}");
+        }
+
+        return response;
+    }
+
 
     #region IPayoutHandler
 
@@ -117,9 +141,80 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         if(blocks.Length == 0)
             return blocks;
 
+        var coin = poolConfig.Template.As<KaspaCoinTemplate>();
+        var pageSize = 100;
+        var pageCount = (int) Math.Ceiling(blocks.Length / (double) pageSize);
         var result = new List<Block>();
 
-        // TODO test if blocks found and gather amount
+        for(var i = 0; i < pageCount; i++)
+        {
+            // get a page full of blocks
+            var page = blocks
+                .Skip(i * pageSize)
+                .Take(pageSize)
+                .ToArray();
+
+            // fetch full blocks for blocks in page
+            var blockBatch = page.Select(block => GetBlockAsync(logger, block.Hash, ct)).ToArray();
+
+            await Guard(() => Task.WhenAll(blockBatch),
+                ex => logger.Debug(ex));
+
+            for(var j = 0; j < page.Length; j++)
+            {
+                var block = page[j];
+                var blockTask = blockBatch[j];
+
+                if(!blockTask.IsCompletedSuccessfully)
+                {
+                    if(blockTask.IsFaulted)
+                        logger.Warn(() => $"Failed to fetch block {block.BlockHeight}: {blockTask.Exception?.InnerException?.Message ?? blockTask.Exception?.Message}");
+                    else
+                        logger.Warn(() => $"Failed to fetch block {block.BlockHeight}: {blockTask.Status.ToString().ToLower()}");
+
+                    continue;
+                }
+
+                var fullBlock = blockTask.Result.GetBlockResponse.Block;
+
+                // reset block reward
+                block.Reward = 0;
+                decimal blockReward = 0;
+
+                if(fullBlock.Transactions.Count >= 1)
+                {
+                    // Miner rewards are always first transaction
+                    var tx = fullBlock.Transactions[0];
+                    if(tx?.VerboseData?.TransactionId != null)
+                    {
+                        block.TransactionConfirmationData = tx.VerboseData.TransactionId;
+                    }
+                    foreach(var output in tx.Outputs)
+                    {
+                        if(output.VerboseData.ScriptPublicKeyAddress.ToLower() == poolConfig?.Address.ToLower())
+                        {
+                            blockReward += output.Amount;
+                        }
+                    }
+                }
+
+                block.Reward = blockReward / KaspaConstants.SmallestUnit;
+                block.Status = BlockStatus.Confirmed;
+                block.ConfirmationProgress = 1;
+
+                result.Add(block);
+
+                if(block.Status == BlockStatus.Confirmed)
+                {
+                    logger.Info(() => $"[{LogCategory}] Unlocked block {block.Hash} worth {FormatAmount(block.Reward)}");
+
+                    messageBus.NotifyBlockUnlocked(poolConfig.Id, block, coin);
+                }
+
+                else
+                    messageBus.NotifyBlockConfirmationProgress(poolConfig.Id, block, coin);
+            }
+        }
 
         return result.ToArray();
     }
