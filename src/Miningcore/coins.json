@@ -1471,6 +1471,20 @@
         "explorerAccountLink": "http://157.245.248.32:3000/#/address/{0}"
     },
 
+    "kaspa": {
+        "name": "Kaspa",
+        "canonicalName": "Kaspa",
+        "symbol": "KAS",
+        "family": "kaspa",
+        "website": "",
+        "market": "",
+        "twitter": "",
+        "telegram": "",
+        "discord": "",
+        "explorerBlockLink": "https://katnip.cbytensky.org/block/$hash$",
+        "explorerTxLink": "https://katnip.cbytensky.org/tx/{0}",
+        "explorerAccountLink": "https://katnip.cbytensky.org/addr/addresses/{0}"
+    },
 
     "lanacoin": {
         "name": "Lanacoin",
@@ -4056,20 +4070,5 @@
         "explorerBlockLink": "https://explorer.ergoplatform.com/en/blocks/$hash$",
         "explorerTxLink": "https://explorer.ergoplatform.com/en/transactions/{0}",
         "explorerAccountLink": "https://explorer.ergoplatform.com/en/addresses/{0}"
-    },
-
-    "kaspa": {
-        "name": "Kaspa",
-        "canonicalName": "Kaspa",
-        "symbol": "KAS",
-        "family": "kaspa",
-        "website": "",
-        "market": "",
-        "twitter": "",
-        "telegram": "",
-        "discord": "",
-        "explorerBlockLink": "https://xxx/blocks/$hash$",
-        "explorerTxLink": "https://xxx/transactions/{0}",
-        "explorerAccountLink": "https://xxx/addresses/{0}"
     }
 }
