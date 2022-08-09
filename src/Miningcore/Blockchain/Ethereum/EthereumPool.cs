@@ -625,6 +625,7 @@ public class EthereumPool : PoolBase
                     break;
 
                 case 2:
+                    await connection.NotifyAsync(EthereumStratumMethods.SetDifficulty, new object[] { context.Difficulty });
                     await SendJob(context, connection, manager.GetJobParamsForStratum());
                     break;
             }
