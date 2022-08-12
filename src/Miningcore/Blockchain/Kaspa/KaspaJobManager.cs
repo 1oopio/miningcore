@@ -15,6 +15,7 @@ using static Miningcore.Util.ActionUtils;
 using Miningcore.Blockchain.Kaspa.RPC.Messages;
 using Miningcore.Blockchain.Kaspa.RPC;
 using BigInteger = System.Numerics.BigInteger;
+using Miningcore.Blockchain.Kaspa.Configuration;
 
 namespace Miningcore.Blockchain.Kaspa;
 
@@ -42,6 +43,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
     private DaemonEndpointConfig[] walletDaemonEndpoints;
     private KaspaGrpcRPCClient grpc;
     private KaspaGrpcWalletClient grpcWallet;
+    private KaspaPoolConfigExtra extraPoolConfig;
     private readonly IMasterClock clock;
     private KaspaNetworkType networkType;
     private readonly IExtraNonceProvider extraNonceProvider;
@@ -127,7 +129,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         var request = new KaspadMessage();
         request.GetBlockTemplateRequest = new GetBlockTemplateRequestMessage();
         request.GetBlockTemplateRequest.PayAddress = poolConfig.Address;
-        request.GetBlockTemplateRequest.ExtraData = "wer dies liest ist doof :D";
+        request.GetBlockTemplateRequest.ExtraData = extraPoolConfig.BlockTemplatePayload ?? String.Empty;
         return await grpc.ExecuteAsync(logger, request, ct);
     }
 
@@ -198,6 +200,8 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         clusterConfig = cc;
         coin = pc.Template.As<KaspaCoinTemplate>();
 
+        extraPoolConfig = pc.Extra.SafeExtensionDataAs<KaspaPoolConfigExtra>();
+
         // extract standard daemon endpoints
         daemonEndpoints = pc.Daemons
             .Where(x => string.IsNullOrEmpty(x.Category))
@@ -225,17 +229,17 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         switch(networkType)
         {
             case KaspaNetworkType.Main:
-                if(!address.ToLower().StartsWith("kaspa"))
+                if(!address.ToLower().StartsWith("kaspa:"))
                     return false;
                 break;
 
             case KaspaNetworkType.Test:
-                if(!address.ToLower().StartsWith("kaspatest"))
+                if(!address.ToLower().StartsWith("kaspatest:"))
                     return false;
                 break;
 
             case KaspaNetworkType.Dev:
-                if(!address.ToLower().StartsWith("kaspadev"))
+                if(!address.ToLower().StartsWith("kaspadev:"))
                     return false;
                 break;
         }
@@ -456,17 +460,17 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         switch(networkType)
         {
             case KaspaNetworkType.Main:
-                if(!poolConfig.Address.ToLower().StartsWith("kaspa"))
+                if(!poolConfig.Address.ToLower().StartsWith("kaspa:"))
                     throw new PoolStartupException($"Invalid pool address, should start with kaspa", poolConfig.Id);
                 break;
 
             case KaspaNetworkType.Test:
-                if(!poolConfig.Address.ToLower().StartsWith("kaspatest"))
+                if(!poolConfig.Address.ToLower().StartsWith("kaspatest:"))
                     throw new PoolStartupException($"Invalid pool address, should start with kaspatest", poolConfig.Id);
                 break;
 
             case KaspaNetworkType.Dev:
-                if(!poolConfig.Address.ToLower().StartsWith("kaspadev"))
+                if(!poolConfig.Address.ToLower().StartsWith("kaspadev:"))
                     throw new PoolStartupException($"Invalid pool address, should start with kaspadev", poolConfig.Id);
                 break;
         }

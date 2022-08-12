@@ -2,6 +2,7 @@ using AutoMapper;
 using Miningcore.Api.Responses;
 using Miningcore.Blockchain;
 using Miningcore.Blockchain.Ergo.Configuration;
+using Miningcore.Blockchain.Kaspa.Configuration;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
 using Miningcore.Mining;
@@ -31,6 +32,7 @@ public static class MiningPoolExtensions
             var extra = poolInfo.PaymentProcessing.Extra;
 
             extra.StripValue(nameof(ErgoPaymentProcessingConfigExtra.WalletPassword));
+            extra.StripValue(nameof(KaspaPaymentProcessingConfigExtra.WalletPassword));
         }
 
         if(poolInfo.Ports != null)

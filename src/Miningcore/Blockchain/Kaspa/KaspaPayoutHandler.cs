@@ -10,12 +10,13 @@ using Miningcore.Persistence.Model;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Time;
 using Miningcore.Util;
+using Miningcore.Blockchain.Kaspa.RPC.Wallet;
 using Miningcore.Blockchain.Kaspa.RPC.Messages;
 using Miningcore.Blockchain.Kaspa.RPC;
+using Miningcore.Blockchain.Kaspa.Configuration;
 using Block = Miningcore.Persistence.Model.Block;
 using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
-using BigInteger = System.Numerics.BigInteger;
 
 namespace Miningcore.Blockchain.Kaspa;
 
@@ -46,7 +47,7 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
     private KaspaGrpcRPCClient grpc;
     private KaspaGrpcWalletClient grpcWallet;
     private KaspaNetworkType? networkType;
-
+    private KaspaPaymentProcessingConfigExtra extraPoolPaymentProcessingConfig;
     protected override string LogCategory => "Kaspa Payout Handler";
 
     private async Task UpdateNetworkTypeAsync(CancellationToken ct)
@@ -88,16 +89,38 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         request.GetBlockRequest = new GetBlockRequestMessage();
         request.GetBlockRequest.Hash = hash;
         request.GetBlockRequest.IncludeTransactions = true;
-        var response = await grpc.ExecuteAsync(logger, request, ct, true);
+        var response = await grpc.ExecuteAsync(logger, request, ct);
 
         if (response == null || response.GetBlockResponse == null)
         {
-            throw new Exception($"No result from node");
+            throw new Exception($"No result from node for get block: {hash}");
         }
 
         if (response.GetBlockResponse.Error != null && response.GetBlockResponse.Error.Message != null)
         {
             throw new Exception($"Got error from node: {response.GetBlockResponse.Error.Message}");
+        }
+
+        return response;
+    }
+    
+    private async Task<KaspadMessage> GetBlocksAsync(NLog.ILogger logger, string hash, CancellationToken ct)
+    {
+        var request = new KaspadMessage();
+        request.GetBlocksRequest = new GetBlocksRequestMessage();
+        request.GetBlocksRequest.LowHash = hash;
+        request.GetBlocksRequest.IncludeBlocks = false;
+        request.GetBlocksRequest.IncludeTransactions = false;
+        var response = await grpc.ExecuteAsync(logger, request, ct);
+
+        if (response == null || response.GetBlocksResponse == null)
+        {
+            throw new Exception($"No result from node for get blocks: {hash}");
+        }
+
+        if (response.GetBlocksResponse.Error != null && response.GetBlocksResponse.Error.Message != null)
+        {
+            throw new Exception($"Got error from node: {response.GetBlocksResponse.Error.Message}");
         }
 
         return response;
@@ -114,6 +137,7 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
 
         poolConfig = pc;
         clusterConfig = cc;
+        extraPoolPaymentProcessingConfig = pc.PaymentProcessing.Extra.SafeExtensionDataAs<KaspaPaymentProcessingConfigExtra>();
 
         var daemonEndpoints = pc.Daemons
             .Where(x => string.IsNullOrEmpty(x.Category))
@@ -145,6 +169,7 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         var pageSize = 100;
         var pageCount = (int) Math.Ceiling(blocks.Length / (double) pageSize);
         var result = new List<Block>();
+        var usedChilds = new List<String>();
 
         for(var i = 0; i < pageCount; i++)
         {
@@ -176,31 +201,60 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
                 }
 
                 var fullBlock = blockTask.Result.GetBlockResponse.Block;
+                var childBlocks = await GetBlocksAsync(logger, block.Hash, ct);
+                var confirms = childBlocks.GetBlocksResponse.BlockHashes.Count() - 1;
+
+                // update progress
+                block.ConfirmationProgress = Math.Min(1.0d, (double) confirms / KaspaConstants.PayoutMinBlockConfirmations);
 
                 // reset block reward
                 block.Reward = 0;
                 decimal blockReward = 0;
+                var foundChild = false;
 
-                if(fullBlock.Transactions.Count >= 1)
+                foreach(var childBlockHash in childBlocks.GetBlocksResponse.BlockHashes)
                 {
-                    // Miner rewards are always first transaction
-                    var tx = fullBlock.Transactions[0];
-                    if(tx?.VerboseData?.TransactionId != null)
+                    if(childBlockHash != block.Hash && !usedChilds.Contains(childBlockHash))
                     {
-                        block.TransactionConfirmationData = tx.VerboseData.TransactionId;
-                    }
-                    foreach(var output in tx.Outputs)
-                    {
-                        if(output.VerboseData.ScriptPublicKeyAddress.ToLower() == poolConfig?.Address.ToLower())
+                        usedChilds.Add(childBlockHash);
+
+                        var childBlockResult = await GetBlockAsync(logger, childBlockHash, ct);
+                        var childBlock = childBlockResult.GetBlockResponse.Block;
+
+                        if(childBlock.VerboseData.Hash == childBlockHash)
                         {
-                            blockReward += output.Amount;
+                            if(childBlock.VerboseData.IsChainBlock)
+                            {
+                                var tx = childBlock.Transactions[0];
+                                foreach(var output in tx.Outputs)
+                                {
+                                    if(output.VerboseData.ScriptPublicKeyAddress.ToLower() == poolConfig?.Address.ToLower())
+                                    {
+                                        blockReward += output.Amount;
+                                    }
+                                }
+                                if(blockReward > 0)
+                                {
+                                    foundChild = true;
+                                    break;
+                                }
+                            }
                         }
+                    }
+                    if(foundChild)
+                    {
+                        break;
                     }
                 }
 
+
                 block.Reward = blockReward / KaspaConstants.SmallestUnit;
-                block.Status = BlockStatus.Confirmed;
-                block.ConfirmationProgress = 1;
+
+                if(confirms >= KaspaConstants.PayoutMinBlockConfirmations)
+                {
+                    block.Status = BlockStatus.Confirmed;
+                    block.ConfirmationProgress = 1;
+                }
 
                 result.Add(block);
 
@@ -232,12 +286,45 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
             return;
 
         var balancesTotal = amounts.Sum(x => x.Value);
+        var walletTotalResponse = await grpcWallet.GetBalanceAsync(logger, ct);
+        var balanceAvailable = (walletTotalResponse?.Available ?? 0) / KaspaConstants.SmallestUnit;
+        if (walletTotalResponse == null || balanceAvailable < balancesTotal)
+        {
+            NotifyPayoutFailure(poolConfig.Id, balances, $"Error with wallet balance {balanceAvailable} vs requested {balancesTotal}", null);
+            return;
+        }
 
-        // TODO
-        // * check balance
-        // * issue payouts
+        logger.Info(() => $"[{LogCategory}] Paying {FormatAmount(balances.Sum(x => x.Amount))} to {balances.Length} addresses");
 
-        NotifyPayoutFailure(poolConfig.Id, balances, "TODO", null);
+        foreach(var balance in balances)
+        {
+            var req = new SendRequest();
+            req.ToAddress = balance.Address;
+            req.Amount = (ulong)(balance.Amount * KaspaConstants.SmallestUnit);
+            req.Password = extraPoolPaymentProcessingConfig.WalletPassword ?? String.Empty;
+
+            try
+            {
+                var sendResponse = await grpcWallet.SendAsync(logger, req, ct, true);
+                if(sendResponse == null)
+                {
+                    NotifyPayoutFailure(poolConfig.Id, new List<Balance> { balance }.ToArray(), $"Error sending {balance.Amount} to {balance.Address}", null);
+                }
+                else
+                {
+                    // payment successful
+                    logger.Info(() => $"[{LogCategory}] Payment transaction id: {sendResponse.TxIDs.ToArray<String>()}");
+
+                    await PersistPaymentsAsync(balances, string.Join(", ", sendResponse.TxIDs.ToArray<String>()));
+
+                    NotifyPayoutSuccess(poolConfig.Id, new List<Balance> { balance }.ToArray(), sendResponse.TxIDs.ToArray<String>(), 0);
+                }
+            }
+            catch(Exception ex)
+            {
+                NotifyPayoutFailure(poolConfig.Id, new List<Balance> { balance }.ToArray(), $"Error sending {balance.Amount} to {balance.Address}", ex);
+            }
+        }
     }
 
     #endregion // IPayoutHandler
