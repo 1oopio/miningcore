@@ -1,0 +1,128 @@
+{
+    "$schema": "https://raw.githubusercontent.com/oliverw/miningcore/master/src/Miningcore/config.schema.json",
+    "logging": {
+        "level": "info",
+        "enableConsoleLog": true,
+        "enableConsoleColors": true,
+        "logFile": "",
+        "apiLogFile": "",
+        "logBaseDirectory": "",
+        "perPoolLogFile": false
+    },
+    "banning": {
+        "manager": "Integrated",
+        "banOnJunkReceive": false,
+        "banOnInvalidShares": false
+    },
+    "notifications": {
+        "enabled": false,
+        "email": {
+            "host": "smtp.example.com",
+            "port": 587,
+            "user": "user",
+            "password": "password",
+            "fromAddress": "info@yourpool.org",
+            "fromName": "pool support"
+        },
+        "admin": {
+            "enabled": false,
+            "emailAddress": "user@example.com",
+            "notifyBlockFound": true
+        }
+    },
+    "persistence": {
+        "postgres": {
+            "host": "127.0.0.1",
+            "port": 5432,
+            "user": "miningcore",
+            "password": "password",
+            "database": "miningcore"
+        }
+    },
+    "paymentProcessing": {
+        "enabled": true,
+        "interval": 100,
+        "shareRecoveryFile": "recovered-shares.txt"
+    },
+    "api": {
+        "enabled": true,
+        "listenAddress": "*",
+        "port": 4000,
+        "metricsIpWhitelist": [],
+        "rateLimiting": {
+            "disabled": true,
+            "rules": [
+                {
+                    "Endpoint": "*",
+                    "Period": "1s",
+                    "Limit": 5
+                }
+            ],
+            "ipWhitelist": [
+                ""
+            ]
+        }
+    },
+    "clusterName": "eu1",
+    "pools": [
+        {
+            "id": "kaspa1",
+            "enabled": true,
+            "coin": "kaspa",
+            "address": "kaspatest:qqaup89cnc5ffgk3728pqnfmgkqcw2g2xxde4cdr4xvepelct3gt6jq2559rv",
+            "rewardRecipients": [
+                {
+                    "type": "op",
+                    "address": "kaspatest:qqaup89cnc5ffgk3728pqnfmgkqcw2g2xxde4cdr4xvepelct3gt6jq2559rv",
+                    "percentage": 1.0
+                }
+            ],
+            "blockRefreshInterval": 200,
+            "clientConnectionTimeout": 600,
+            "banning": {
+                "enabled": true,
+                "time": 600,
+                "invalidPercent": 50,
+                "checkThreshold": 50
+            },
+            "ports": {
+                "4090": {
+                    "name": "GPU",
+                    "listenAddress": "*",
+                    "difficulty": 1
+                }
+            },
+            "chainTypeOverride": "Kaspa",
+            "daemons": [
+                {
+                    "host": "127.0.0.1",
+                    "port": 16210,
+                    "ssl": false,
+                    "user": "",
+                    "password": ""
+                },
+                {
+                    "host": "127.0.0.1",
+                    "port": 8082,
+                    "user": "",
+                    "password": "",
+                    "category": "wallet"
+                }
+            ],
+            "paymentProcessing": {
+                "enabled": true,
+                "minimumPayment": 20000,
+                "payoutScheme": "PPLNS",
+                "payoutSchemeConfig": {
+                    "factor": 0.5
+                },
+                "gas": 21000,
+                "maxFeePerGas": 50000000000,
+                "keepUncles": false,
+                "keepTransactionFees": false,
+                "walletPassword": "foo"
+            },
+            "blockTemplatePayload": "Foo the bar"
+        }
+    ]
+}
