@@ -1,5 +1,4 @@
 using Grpc.Net.Client;
-using Grpc.Core;
 using System.Diagnostics;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
@@ -89,7 +88,7 @@ public class KaspaGrpcWalletClient
         }
     }
 
-    public async Task<SendResponse> SendAsync(ILogger logger, SendRequest req, CancellationToken ct)
+    public async Task<SendResponse> SendAsync(ILogger logger, SendRequest req, CancellationToken ct, bool throwErrors = false)
     {
         var sw = Stopwatch.StartNew();
         try
@@ -111,6 +110,10 @@ public class KaspaGrpcWalletClient
         }
         catch(Exception ex)
         {
+            if (throwErrors)
+            {
+                throw ex;
+            }
             return null;
         }
     }
