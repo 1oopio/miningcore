@@ -15,10 +15,5 @@ public static class KaspaConstants
     public const string WalletDaemonCategory = "wallet";
     public static readonly BigInteger Diff1 = BigInteger.Parse("00ffff0000000000000000000000000000000000000000000000000000", NumberStyles.HexNumber);
     public const decimal SmallestUnit = 100000000;
-#if DEBUG
-    public const int PayoutMinBlockConfirmations = 2;
-#else
-        public const int PayoutMinBlockConfirmations = 60;
-#endif
-
+    public const int PayoutMinBlockConfirmations = 40;
 }
