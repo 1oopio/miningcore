@@ -13,6 +13,7 @@ public enum KaspaNetworkType
 public static class KaspaConstants
 {
     public const string WalletDaemonCategory = "wallet";
+    public static readonly double Pow2x32 = Math.Pow(2, 32);
     public static readonly BigInteger Diff1 = BigInteger.Parse("00ffff0000000000000000000000000000000000000000000000000000", NumberStyles.HexNumber);
     public const decimal SmallestUnit = 100000000;
     public const int PayoutMinBlockConfirmations = 40;
