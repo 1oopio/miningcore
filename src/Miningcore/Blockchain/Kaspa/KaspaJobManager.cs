@@ -50,7 +50,6 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
     private KaspaCoinTemplate coin;
     private readonly int extraNonceSize;
     private readonly List<KaspaJob> validJobs = new();
-    private int maxActiveJobs = 99;
 
     protected async Task<bool> UpdateJob(CancellationToken ct, string via = null, string json = null)
     {
@@ -95,7 +94,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
                     validJobs.Insert(0, job);
 
                     // trim active jobs
-                    while(validJobs.Count > maxActiveJobs)
+                    while(validJobs.Count > KaspaConstants.MaxActiveJobs)
                         validJobs.RemoveAt(validJobs.Count - 1);
                 }
 

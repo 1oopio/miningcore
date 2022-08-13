@@ -48,6 +48,9 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
     private KaspaGrpcWalletClient grpcWallet;
     private KaspaNetworkType? networkType;
     private KaspaPaymentProcessingConfigExtra extraPoolPaymentProcessingConfig;
+    private List<String> usedChilds = new();
+    protected readonly object childLock = new();
+
     protected override string LogCategory => "Kaspa Payout Handler";
 
     private async Task UpdateNetworkTypeAsync(CancellationToken ct)
@@ -169,7 +172,6 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         var pageSize = 100;
         var pageCount = (int) Math.Ceiling(blocks.Length / (double) pageSize);
         var result = new List<Block>();
-        var usedChilds = new List<String>();
 
         for(var i = 0; i < pageCount; i++)
         {
@@ -214,9 +216,22 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
 
                 foreach(var childBlockHash in childBlocks.GetBlocksResponse.BlockHashes)
                 {
-                    if(childBlockHash != block.Hash && !usedChilds.Contains(childBlockHash))
+                    var alreadyUsed = false;
+                    lock(childLock)
                     {
-                        usedChilds.Add(childBlockHash);
+                        alreadyUsed = usedChilds.Contains(childBlockHash);
+                    }
+
+                    if(childBlockHash != block.Hash && !alreadyUsed)
+                    {
+                        lock(childLock)
+                        {
+                            usedChilds.Insert(0, childBlockHash);
+
+                            // trim active jobs
+                            while(usedChilds.Count > KaspaConstants.PayoutMaxRewardCheckChilds)
+                                usedChilds.RemoveAt(usedChilds.Count - 1);
+                        }
 
                         var childBlockResult = await GetBlockAsync(logger, childBlockHash, ct);
                         var childBlock = childBlockResult.GetBlockResponse.Block;
