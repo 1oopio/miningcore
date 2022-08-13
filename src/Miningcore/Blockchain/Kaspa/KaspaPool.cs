@@ -123,7 +123,15 @@ public class KaspaPool : PoolBase
                 logger.Info(() => $"[{connection.ConnectionId}] Setting static difficulty of {staticDiff.Value}");
             }
 
-            await connection.NotifyAsync(KaspaStratumMethods.SetExtranonce, new object[] { context.ExtraNonce1, 6 });
+            if (context.EthereumStratumVariant)
+            {
+                await connection.NotifyAsync(KaspaStratumMethods.SetExtranonceAlt, new object[] { context.ExtraNonce1, 6 });
+            }
+            else
+            {
+                await connection.NotifyAsync(KaspaStratumMethods.SetExtranonce, new object[] { context.ExtraNonce1, 6 });
+            }
+
             await connection.NotifyAsync(KaspaStratumMethods.SetDifficulty, new object[] { context.Difficulty });
 
             logger.Info(() => $"[{connection.ConnectionId}] Authorized worker {workerValue}");
