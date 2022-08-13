@@ -378,6 +378,7 @@ public class KaspaPool : PoolBase
                     await OnSubmitAsync(connection, tsRequest, ct);
                     break;
                 case KaspaStratumMethods.SubmitHashrate:
+                case KaspaStratumMethods.SubmitHashrateAlt:
                     await OnSubmitHashrate(connection, tsRequest, ct);
                     break;
                 default:
