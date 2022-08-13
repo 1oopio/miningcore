@@ -18,7 +18,6 @@ using Miningcore.Time;
 using Miningcore.Notifications.Messages;
 using Newtonsoft.Json;
 using static Miningcore.Util.ActionUtils;
-
 namespace Miningcore.Blockchain.Kaspa;
 
 [CoinFamily(CoinFamily.Kaspa)]
@@ -397,7 +396,8 @@ public class KaspaPool : PoolBase
 
     public override double HashrateFromShares(double shares, double interval)
     {
-        var result = shares / interval;
+        var multiplier = KaspaConstants.Pow2x32;
+        var result = shares * multiplier / interval;
         return result;
     }
 
