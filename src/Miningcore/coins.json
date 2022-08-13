@@ -1481,9 +1481,9 @@
         "twitter": "",
         "telegram": "",
         "discord": "",
-        "explorerBlockLink": "https://katnip.cbytensky.org/block/$hash$",
-        "explorerTxLink": "https://katnip.cbytensky.org/tx/{0}",
-        "explorerAccountLink": "https://katnip.cbytensky.org/addr/addresses/{0}"
+        "explorerBlockLink": "https://katnip.kaspad.net/block/$hash$",
+        "explorerTxLink": "https://katnip.kaspad.net/tx/{0}",
+        "explorerAccountLink": "https://katnip.kaspad.net/addr/addresses/{0}"
     },
 
     "lanacoin": {
