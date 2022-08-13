@@ -145,15 +145,26 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
             requestInfo.GetBlockDagInfoRequest = new GetBlockDagInfoRequestMessage();
             var responseInfo = await grpc.ExecuteAsync(logger, requestInfo, ct);
 
+            if(responseInfo != null && responseInfo.GetBlockDagInfoResponse != null)
+            {
+
+                var requestHashrate = new KaspadMessage();
+                requestHashrate.EstimateNetworkHashesPerSecondRequest = new EstimateNetworkHashesPerSecondRequestMessage();
+                requestHashrate.EstimateNetworkHashesPerSecondRequest.WindowSize = 1000;
+                requestHashrate.EstimateNetworkHashesPerSecondRequest.StartHash = responseInfo.GetBlockDagInfoResponse.TipHashes.First();
+                var responseHashrate = await grpc.ExecuteAsync(logger, requestHashrate, ct);
+                if (responseHashrate != null && responseHashrate.EstimateNetworkHashesPerSecondResponse != null && responseHashrate.EstimateNetworkHashesPerSecondResponse.Error == null)
+                {
+                    BlockchainStats.NetworkHashrate = responseHashrate.EstimateNetworkHashesPerSecondResponse.NetworkHashesPerSecond;
+                }
+            }
 
             var requestPeers = new KaspadMessage();
             requestPeers.GetConnectedPeerInfoRequest = new GetConnectedPeerInfoRequestMessage();
             var responsePeers = await grpc.ExecuteAsync(logger, requestPeers, ct);
 
-
-            if(responseInfo != null && responsePeers != null && responseInfo.GetBlockDagInfoResponse != null && responsePeers.GetConnectedPeerInfoResponse != null)
+            if(responsePeers != null && responsePeers.GetConnectedPeerInfoResponse != null)
             {
-                BlockchainStats.NetworkDifficulty = responseInfo.GetBlockDagInfoResponse.Difficulty;
                 BlockchainStats.ConnectedPeers = responsePeers.GetConnectedPeerInfoResponse.Infos.Count;
             }
         }
