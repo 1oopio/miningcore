@@ -212,7 +212,7 @@ public class KaspaJob
 
         var result = new Share
         {
-            BlockHeight = (long) block.Header.BlueScore,
+            BlockHeight = (long) block.Header.DaaScore,
             NetworkDifficulty = DifficultyFromTargetBits(),
             Difficulty = stratumDifficulty
         };
