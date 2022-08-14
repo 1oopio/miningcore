@@ -101,7 +101,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
                 currentJob = job;
 
                 BlockchainStats.LastNetworkBlockTime = clock.Now;
-                BlockchainStats.BlockHeight = block.Header.BlueScore; // Not really height, but we have nothing else
+                BlockchainStats.BlockHeight = block.Header.DaaScore;
                 BlockchainStats.NetworkDifficulty = job.DifficultyFromTargetBits();
                 BlockchainStats.NextNetworkTarget = "";
                 BlockchainStats.NextNetworkBits = "";
