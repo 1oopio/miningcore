@@ -313,6 +313,7 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
 
         foreach(var balance in balances)
         {
+            var balanceAsArray = new List<Balance> { balance }.ToArray();
             var req = new SendRequest();
             req.ToAddress = balance.Address;
             req.Amount = (ulong)(balance.Amount * KaspaConstants.SmallestUnit);
@@ -323,21 +324,21 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
                 var sendResponse = await grpcWallet.SendAsync(logger, req, ct, true);
                 if(sendResponse == null)
                 {
-                    NotifyPayoutFailure(poolConfig.Id, new List<Balance> { balance }.ToArray(), $"Error sending {balance.Amount} to {balance.Address}", null);
+                    NotifyPayoutFailure(poolConfig.Id, balanceAsArray, $"Error sending {balance.Amount} to {balance.Address}", null);
                 }
                 else
                 {
                     // payment successful
                     logger.Info(() => $"[{LogCategory}] Payment transaction id: {sendResponse.TxIDs.ToArray<String>()}");
 
-                    await PersistPaymentsAsync(balances, string.Join(", ", sendResponse.TxIDs.ToArray<String>()));
+                    await PersistPaymentsAsync(balanceAsArray, string.Join(",", sendResponse.TxIDs.ToArray<String>()));
 
-                    NotifyPayoutSuccess(poolConfig.Id, new List<Balance> { balance }.ToArray(), sendResponse.TxIDs.ToArray<String>(), 0);
+                    NotifyPayoutSuccess(poolConfig.Id, balanceAsArray, sendResponse.TxIDs.ToArray<String>(), 0);
                 }
             }
             catch(Exception ex)
             {
-                NotifyPayoutFailure(poolConfig.Id, new List<Balance> { balance }.ToArray(), $"Error sending {balance.Amount} to {balance.Address}", ex);
+                NotifyPayoutFailure(poolConfig.Id, balanceAsArray, $"Error sending {balance.Amount} to {balance.Address}", ex);
             }
         }
     }
