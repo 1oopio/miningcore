@@ -27,7 +27,7 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: |
-            aczd1yuv.gra7.container-registry.ovh.net/stratumfarm/miningcore
+            ${{ secrets.HARBOR_URL }}/stratumfarm/miningcore
           tags: |
             type=raw,event=tag,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
             type=semver,event=tag,pattern={{version}}
@@ -37,9 +37,9 @@ jobs:
         name: dockerhub login
         uses: docker/login-action@v1
         with:
-          registry: aczd1yuv.gra7.container-registry.ovh.net
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ${{ secrets.HARBOR_URL }}
+          username: ${{ secrets.HARBOR_USER }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
       - 
         name: build and push the image
         uses: docker/build-push-action@v2
