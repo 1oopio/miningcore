@@ -164,6 +164,8 @@ public class PPLNSPaymentScheme : IPayoutScheme
         var blockRewardRemaining = blockReward;
         DateTime? shareCutOffDate = null;
 
+        logger.Info(() => $"Trying to distribute shares for pool {poolConfig.Id}, block {block.BlockHeight}, with reward {blockRewardRemaining} ({block.Reward})");
+
         while(!done && !ct.IsCancellationRequested)
         {
             logger.Info(() => $"Fetching page {currentPage} of shares for pool {poolConfig.Id}, block {block.BlockHeight}");
@@ -177,6 +179,8 @@ public class PPLNSPaymentScheme : IPayoutScheme
             for(var i = 0; !done && i < page.Length; i++)
             {
                 var share = page[i];
+
+                logger.Info(() => $"Processing share {share.Difficulty}/{share.NetworkDifficulty} from miner {share.Miner}");
 
                 var address = share.Miner;
                 var shareDiffAdjusted = payoutHandler.AdjustShareDifficulty(share.Difficulty);
@@ -201,6 +205,8 @@ public class PPLNSPaymentScheme : IPayoutScheme
                 var reward = score * blockReward / window;
                 accumulatedScore += score;
                 blockRewardRemaining -= reward;
+
+                logger.Info(() => $"Remainder for next share: {blockRewardRemaining}");
 
                 // this should never happen
                 if(blockRewardRemaining <= 0 && !done)
