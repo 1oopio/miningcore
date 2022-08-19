@@ -21,7 +21,7 @@ public class DeroWorkerContext : WorkerContextBase
     {
         validJobs.Insert(0, job);
 
-        while(validJobs.Count > 4)
+        while(validJobs.Count > 8)
             validJobs.RemoveAt(validJobs.Count - 1);
     }
 
