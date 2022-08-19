@@ -240,18 +240,25 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
                         {
                             if(childBlock.VerboseData.IsChainBlock)
                             {
-                                var tx = childBlock.Transactions[0];
-                                foreach(var output in tx.Outputs)
+                                if(childBlock.Transactions.Count() > 0)
                                 {
-                                    if(output.VerboseData.ScriptPublicKeyAddress.ToLower() == poolConfig?.Address.ToLower())
+                                    var tx = childBlock.Transactions[0];
+                                    foreach(var output in tx.Outputs)
                                     {
-                                        blockReward += output.Amount;
+                                        if(output.VerboseData.ScriptPublicKeyAddress.ToLower() == poolConfig?.Address.ToLower())
+                                        {
+                                            blockReward += output.Amount;
+                                        }
+                                    }
+                                    if(blockReward > 0)
+                                    {
+                                        foundChild = true;
+                                        break;
                                     }
                                 }
-                                if(blockReward > 0)
+                                else
                                 {
-                                    foundChild = true;
-                                    break;
+                                    throw new Exception($"Expecting at least one transaction within block {childBlockHash}, but got none (pruned?)");
                                 }
                             }
                         }
