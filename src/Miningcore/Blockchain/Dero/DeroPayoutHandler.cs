@@ -1,6 +1,7 @@
 using System.Data;
 using Autofac;
 using AutoMapper;
+using Miningcore.Blockchain.Dero.Configuration;
 using Miningcore.Blockchain.Dero.DaemonRequests;
 using Miningcore.Blockchain.Dero.DaemonResponses;
 using Miningcore.Configuration;
@@ -46,6 +47,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
     private readonly IComponentContext ctx;
     private RpcClient rpcClient;
     private RpcClient rpcClientWallet;
+    private DeroPaymentProcessingConfigExtra extraPoolPaymentProcessingConfig;
     private DeroNetworkType? networkType;
 
     protected override string LogCategory => "Dero Payout Handler";
@@ -153,6 +155,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
         poolConfig = pc;
         clusterConfig = cc;
+        extraPoolPaymentProcessingConfig = pc.PaymentProcessing.Extra.SafeExtensionDataAs<DeroPaymentProcessingConfigExtra>();
 
         logger = LogUtil.GetPoolScopedLogger(typeof(DeroPayoutHandler), pc);
 
@@ -386,7 +389,11 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
         if(balances.Length > 0)
         {
-            var maxBatchSize = 15;
+            var maxBatchSize = extraPoolPaymentProcessingConfig.PayoutBatchSize;
+            if (maxBatchSize <= 0 || maxBatchSize > 32)
+            {
+                maxBatchSize = 15;
+            }
             var pageSize = maxBatchSize;
             var pageCount = (int) Math.Ceiling((double) balances.Length / pageSize);
 

@@ -120,7 +120,8 @@
                 "gas": 21000,
                 "maxFeePerGas": 50000000000,
                 "keepUncles": false,
-                "keepTransactionFees": false
+                "keepTransactionFees": false,
+                "payoutBatchSize": 15
             }
         }
     ]
