@@ -414,14 +414,14 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
 
                 if(confirms >= KaspaConstants.PayoutMinBlockConfirmations)
                 {
-                    if (block.Reward == 0)
-                    {
-                        // FIXME what to do? Mark as orphan? use other way to detect "possible" reward?
-                        throw new Exception($"Can not determine block reward for confirmed block {block.Hash}");
-                    }
+                    block.Status = BlockStatus.Orphaned;
 
-                    block.Status = BlockStatus.Confirmed;
-                    block.ConfirmationProgress = 1;
+                    // We only mark the block as confirmed, if the block has an reward
+                    if (block.Reward > 0)
+                    {
+                        block.Status = BlockStatus.Confirmed;
+                        block.ConfirmationProgress = 1;
+                    }
                 }
 
                 result.Add(block);
