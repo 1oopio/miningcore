@@ -14,6 +14,7 @@ using Miningcore.Blockchain.Kaspa.RPC.Wallet;
 using Miningcore.Blockchain.Kaspa.RPC.Messages;
 using Miningcore.Blockchain.Kaspa.RPC;
 using Miningcore.Blockchain.Kaspa.Configuration;
+using System.Collections;
 using Block = Miningcore.Persistence.Model.Block;
 using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
@@ -52,6 +53,141 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
     protected readonly object childLock = new();
 
     protected override string LogCategory => "Kaspa Payout Handler";
+
+    private string ConvertToAddress(string prefix, byte[] bytes, uint version)
+    {
+        string charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+        int checksumLength = 8;
+        long[] generator = { 0x98f2bc8e61, 0x79b76d99e2, 0xf33e5fb3c4, 0xae2eabe2a8, 0x1e4f43e470 };
+
+        byte[] data = new byte[1 + bytes.Length];
+        data[0] = (byte) version;
+        bytes.CopyTo(data, 1);
+
+        // Convert source bytes
+        ArrayList regrouped = new ArrayList();
+        byte toBits = 5;
+        byte nextByte = 0;
+        byte filledBits = 0;
+        foreach(var dataByte in data)
+        {
+            byte b = dataByte;
+            byte remainingFromBits = 8;
+            while(remainingFromBits > 0)
+            {
+                byte remainingToBits = (byte) (toBits - filledBits);
+                byte toExtract = remainingFromBits;
+                if(remainingToBits < toExtract)
+                {
+                    toExtract = remainingToBits;
+                }
+
+                nextByte = (byte) ((nextByte << toExtract) | (b >> (8 - toExtract)));
+
+                b = (byte) (b << toExtract);
+
+                remainingFromBits -= toExtract;
+
+                filledBits += toExtract;
+
+                if(filledBits == toBits)
+                {
+                    regrouped.Add(nextByte);
+                    filledBits = 0;
+                    nextByte = 0;
+                }
+            };
+        }
+
+        if(filledBits > 0)
+        {
+            nextByte = (byte) (nextByte << (toBits - filledBits));
+            regrouped.Add(nextByte);
+        }
+
+        // Create checksum
+        int[] prefixLower5Bits = new int[prefix.Length];
+        for(var i = 0; i < prefix.Length; i++)
+        {
+            char c = prefix[i];
+            prefixLower5Bits[i] = (int) (c & 31);
+        }
+        int[] templateZeroes = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
+        ArrayList payloadInts = new ArrayList();
+        foreach(var b in regrouped.OfType<byte>())
+        {
+            payloadInts.Add((int) b);
+        }
+        ArrayList concat = new ArrayList();
+        concat.AddRange(prefixLower5Bits);
+        concat.Add(0);
+        concat.AddRange(payloadInts);
+        concat.AddRange(templateZeroes);
+
+        long polyModResult = 1;
+        foreach(var value in concat)
+        {
+            long topBits = polyModResult >> 35;
+            polyModResult = (((polyModResult & 0x07ffffffff) << 5) ^ (int) (value));
+            for(var i = 0; i < generator.Length; i++)
+            {
+                if(((topBits >> (int) (i)) & 1) == 1)
+                {
+                    polyModResult ^= generator[i];
+                }
+            }
+        }
+        polyModResult ^= 1;
+
+        ArrayList res = new ArrayList();
+        for(var i = 0; i < checksumLength; i++)
+        {
+            res.Add((byte) ((polyModResult >> (int) ((uint) (5 * (checksumLength - 1 - i)))) & 31));
+        }
+
+        // Build Address
+        ArrayList addressData = new ArrayList();
+        addressData.AddRange(regrouped);
+        addressData.AddRange(res);
+        string address = "";
+        for(var i = 0; i < addressData.Count; i++)
+        {
+            if((byte) addressData[i] >= charset.Length)
+            {
+                return "";
+            }
+            address += charset[(byte) addressData[i]];
+        }
+
+        return prefix + ":" + address;
+    }
+
+    private string ConvertToAddress(byte[] bytes)
+    {
+        var prefix = "";
+        if(networkType == KaspaNetworkType.Main)
+        {
+            prefix = "kaspa";
+        }
+        else if(networkType == KaspaNetworkType.Dev)
+        {
+            prefix = "kaspadev";
+        }
+        else if(networkType == KaspaNetworkType.Test)
+        {
+            prefix = "kaspatest";
+        }
+        if(bytes[0] == 0xaa && bytes[1] <= 0x76)
+        {
+            return ConvertToAddress(prefix, bytes[2..(2 + bytes[1])], 0x08);
+        }
+        else if(bytes[0] < 0x76)
+        {
+            return ConvertToAddress(prefix, bytes[1..(1 + bytes[0])], 0x00);
+        }
+        return "";
+    }
 
     private async Task UpdateNetworkTypeAsync(CancellationToken ct)
     {
@@ -245,7 +381,11 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
                                     var tx = childBlock.Transactions[0];
                                     foreach(var output in tx.Outputs)
                                     {
-                                        if(output.VerboseData.ScriptPublicKeyAddress.ToLower() == poolConfig?.Address.ToLower())
+                                        if(output.VerboseData != null && output.VerboseData.ScriptPublicKeyAddress.ToLower() == poolConfig?.Address.ToLower())
+                                        {
+                                            blockReward += output.Amount;
+                                        }
+                                        else if(output.ScriptPublicKey != null && ConvertToAddress(output.ScriptPublicKey.ScriptPublicKey.HexToByteArray()).ToLower() == poolConfig?.Address.ToLower())
                                         {
                                             blockReward += output.Amount;
                                         }
@@ -274,6 +414,12 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
 
                 if(confirms >= KaspaConstants.PayoutMinBlockConfirmations)
                 {
+                    if (block.Reward == 0)
+                    {
+                        // FIXME what to do? Mark as orphan? use other way to detect "possible" reward?
+                        throw new Exception($"Can not determine block reward for confirmed block {block.Hash}");
+                    }
+
                     block.Status = BlockStatus.Confirmed;
                     block.ConfirmationProgress = 1;
                 }
