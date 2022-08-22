@@ -41,6 +41,21 @@ public class EthereumConstants
     public const string RpcRequestWorkerPropertyName = "worker";
 }
 
+// EthereumClassic Monetary Policy
+// https://github.com/EthereumCommonwealth/Roadmap/issues/56
+public class EthereumClassicConstants
+{
+    public const ulong EtcEra1HardForkHeight = 1;
+    public const ulong EtcEra2HardForkHeight = 5000001;
+    public const ulong EtcEra3HardForkHeight = 10000001;
+    public const ulong EtcEra4HardForkHeight = 15000001;    
+    public const decimal EtcEra1BlockReward = 5.0m;
+    public const decimal EtcEra2BlockReward = 4.0m;
+    public const decimal EtcEra3BlockReward = 3.2m;
+    public const decimal EtcEra4BlockReward = 2.56m;
+    public const decimal EtcEra5BlockReward = 2.048m;
+}
+
 // Callisto Monetary Policy
 // https://github.com/EthereumCommonwealth/Roadmap/issues/56
 public class CallistoConstants
@@ -53,6 +68,7 @@ public enum EthereumNetworkType
 {
     Mainnet = 1,
     Ropsten = 3,
+    EthereumClassic = 61,
     Callisto = 820,
 
     Unknown = -1,
@@ -62,6 +78,7 @@ public enum GethChainType
 {
     Ethereum,
     Ropsten,
+    EthereumClassic,
     Callisto,
 
     Unknown = -1,

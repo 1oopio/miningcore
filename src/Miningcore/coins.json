@@ -4026,10 +4026,10 @@
         "canonicalName": "Callisto",
         "symbol": "CLO",
         "family": "ethereum",
-        "website": "",
-        "market": "",
-        "twitter": "",
-        "telegram": "",
+        "website": "https://callisto.network/",
+        "market": "https://coinmarketcap.com/currencies/ergo/",
+        "twitter": "https://twitter.com/CallistoSupport",
+        "telegram": "https://t.me/CallistoNet",
         "discord": "",
         "explorerBlockLinks": {
             "block": "https://explorer.callisto.network/blocks/$height$",
@@ -4037,6 +4037,24 @@
         },
         "explorerTxLink": "https://explorer.callisto.network/tx/{0}",
         "explorerAccountLink": "https://explorer.callisto.network/address/{0}"
+    },
+
+    "ethereumclassic": {
+        "name": "EthereumClassic",
+        "canonicalName": "Ethereum Classic",
+        "symbol": "ETC",
+        "family": "ethereum",
+        "website": "https://ethereumclassic.org/",
+        "market": "https://coinmarketcap.com/de/currencies/ethereum-classic/",
+        "twitter": "https://twitter.com/eth_classic",
+        "telegram": "",
+        "discord": "https://ethereumclassic.org/discord",
+        "explorerBlockLinks": {
+            "block": "https://blockscout.com/etc/mainnet/block/$height$",
+            "uncle": "https://blockscout.com/etc/mainnet/block/$height$"
+        },
+        "explorerTxLink": "https://blockscout.com/etc/mainnet/tx/{0}",
+        "explorerAccountLink": "https://blockscout.com/etc/mainnet/tx/{0}"
     },
 
     "ethereum": {
@@ -4062,11 +4080,11 @@
         "canonicalName": "Ergo",
         "symbol": "ERG",
         "family": "ergo",
-        "website": "",
-        "market": "",
-        "twitter": "",
-        "telegram": "",
-        "discord": "",
+        "website": "https://ergoplatform.org/",
+        "market": "https://coinmarketcap.com/currencies/ergo/",
+        "twitter": "https://twitter.com/ergoplatformorg",
+        "telegram": "https://t.me/ergochats",
+        "discord": "https://discord.gg/RC8M4Bkgsy",
         "explorerBlockLink": "https://explorer.ergoplatform.com/en/blocks/$hash$",
         "explorerTxLink": "https://explorer.ergoplatform.com/en/transactions/{0}",
         "explorerAccountLink": "https://explorer.ergoplatform.com/en/addresses/{0}"

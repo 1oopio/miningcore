@@ -312,6 +312,21 @@ public class EthereumPayoutHandler : PayoutHandlerBase,
 
                 return EthereumConstants.HomesteadBlockReward;
 
+            case GethChainType.EthereumClassic:
+                if(height >= EthereumClassicConstants.EtcEra1HardForkHeight)
+                    return EthereumClassicConstants.EtcEra1BlockReward;
+
+                if(height >= EthereumClassicConstants.EtcEra2HardForkHeight)
+                    return EthereumClassicConstants.EtcEra2BlockReward;
+
+                if(height >= EthereumClassicConstants.EtcEra3HardForkHeight)
+                    return EthereumClassicConstants.EtcEra3BlockReward; 
+
+                if(height >= EthereumClassicConstants.EtcEra4HardForkHeight)
+                    return EthereumClassicConstants.EtcEra4BlockReward;
+
+                return EthereumClassicConstants.EtcEra5BlockReward;
+
             case GethChainType.Callisto:
                 return CallistoConstants.BaseRewardInitial * (CallistoConstants.TreasuryPercent / 100);
 
