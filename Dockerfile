@@ -13,6 +13,7 @@ RUN apt-get update && \
     apt-get clean
 RUN groupadd -g 10001 miningcore
 RUN useradd -u 10001 -g miningcore -d /app miningcore
-USER miningcore
 COPY --from=BUILDER /app/build ./
+RUN chown -R miningcore:miningcore /app
+USER miningcore
 CMD ["./Miningcore", "-c", "config.json" ]

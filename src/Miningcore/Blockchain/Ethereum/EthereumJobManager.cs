@@ -46,11 +46,11 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
         this.extraNonceProvider = extraNonceProvider;
     }
 
+    private EthereumCoinTemplate coin;
     private DaemonEndpointConfig[] daemonEndpoints;
     private RpcClient rpc;
     private EthereumNetworkType networkType;
     private GethChainType chainType;
-    private EthashFull ethash;
     private readonly IMasterClock clock;
     private readonly IExtraNonceProvider extraNonceProvider;
     private const int MaxBlockBacklog = 6;
@@ -99,10 +99,12 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
             {
                 messageBus.NotifyChainHeight(poolConfig.Id, blockTemplate.Height, poolConfig.Template);
 
+                
+
                 var jobId = NextJobId("x8");
 
                 // update template
-                job = new EthereumJob(jobId, blockTemplate, logger);
+                job = new EthereumJob(jobId, blockTemplate, logger, coin.EthashFull);
 
                 lock(jobLock)
                 {
@@ -335,6 +337,7 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
     public override void Configure(PoolConfig pc, ClusterConfig cc)
     {
         extraPoolConfig = pc.Extra.SafeExtensionDataAs<EthereumPoolConfigExtra>();
+        coin = pc.Template.As<EthereumCoinTemplate>();
 
         // extract standard daemon endpoints
         daemonEndpoints = pc.Daemons
@@ -348,13 +351,17 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
             // ensure dag location is configured
             var dagDir = !string.IsNullOrEmpty(extraPoolConfig?.DagDir) ?
                 Environment.ExpandEnvironmentVariables(extraPoolConfig.DagDir) :
-                Dag.GetDefaultDagDirectory();
+                coin.EthashFull.GetDefaultDagDirectory(); // if multiple ethash pools are configured, please make sure to set a unique dag dir for each!
 
             // create it if necessary
             Directory.CreateDirectory(dagDir);
 
+            logger.Info(() => $"Ethasher is: {coin.Ethasher}");
+
             // setup ethash
-            ethash = new EthashFull(3, dagDir);
+            coin.EthashFull.Setup(3, dagDir, logger); // TODO: Maybe create a different instance every time? Does this even work?
+            /* coin.EthashFull = new coin.EthashFull(logger, dagDir);
+            ethash = new EthashFull(3, dagDir); */
         }
     }
 
@@ -428,7 +435,7 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
         EthereumWorkerContext context, string workerName, EthereumJob job, string nonce, CancellationToken ct)
     {
         // validate & process
-        var (share, fullNonceHex, headerHash, mixHash) = await job.ProcessShareAsync(worker, workerName, nonce, ethash, ct);
+        var (share, fullNonceHex, headerHash, mixHash) = await job.ProcessShareAsync(worker, workerName, nonce, ct);
 
         // enrich share with common data
         share.PoolId = poolConfig.Id;
@@ -564,7 +571,7 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
                 {
                     logger.Info(() => "Loading current DAG ...");
 
-                    await ethash.GetDagAsync(blockTemplate.Height, logger, ct);
+                    await coin.EthashFull.GetDagAsync(blockTemplate.Height, logger, ct);
 
                     logger.Info(() => "Loaded current DAG");
                     break;

@@ -1,16 +1,17 @@
 using System.Diagnostics;
-using System.Text;
 using Miningcore.Blockchain.Ethereum;
 using Miningcore.Contracts;
+using Miningcore.Crypto.Hashing.Ethash;
 using Miningcore.Extensions;
 using Miningcore.Messaging;
 using Miningcore.Native;
 using Miningcore.Notifications.Messages;
 using NLog;
 
-namespace Miningcore.Crypto.Hashing.Ethash;
+namespace Miningcore.Crypto.Hashing.Ethhash;
 
-public class Dag : IDisposable
+[Identifier("ethhash")]
+public class Dag : IEthashDag
 {
     public Dag(ulong epoch)
     {
@@ -25,28 +26,6 @@ public class Dag : IDisposable
     internal static IMessageBus messageBus;
 
     public DateTime LastUsed { get; set; }
-
-    public static unsafe string GetDefaultDagDirectory()
-    {
-        var chars = new byte[512];
-
-        fixed (byte* data = chars)
-        {
-            if(EthHash.ethash_get_default_dirname(data, chars.Length))
-            {
-                int length;
-                for(length = 0; length < chars.Length; length++)
-                {
-                    if(data[length] == 0)
-                        break;
-                }
-
-                return Encoding.UTF8.GetString(data, length);
-            }
-        }
-
-        return null;
-    }
 
     public void Dispose()
     {

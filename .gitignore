@@ -204,7 +204,10 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 # End of https://www.toptal.com/developers/gitignore/api/rider
+<<<<<<< HEAD
 .idea
+=======
+>>>>>>> f61b148d8 (feat: etc support)
 
 src/Native/libastrobwt/libastrobwt.h
 src/Native/libcryptonight/xmrig/3rdparty/argon2/arch/x86_64/lib/argon2-arch.o

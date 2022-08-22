@@ -1,24 +1,54 @@
+using System.Text;
 using Miningcore.Blockchain.Ethereum;
 using Miningcore.Contracts;
+using Miningcore.Crypto.Hashing.Ethash;
+using Miningcore.Native;
 using NLog;
 
-namespace Miningcore.Crypto.Hashing.Ethash;
+namespace Miningcore.Crypto.Hashing.Ethhash;
 
-public class EthashFull : IDisposable
+[Identifier("ethhash")]
+public class EthashFull : IEthashFull
 {
-    public EthashFull(int numCaches, string dagDir)
+    public void Setup(int numCaches, string dagDir, ILogger logger)
     {
         Contract.Requires<ArgumentException>(!string.IsNullOrEmpty(dagDir));
 
         this.numCaches = numCaches;
         this.dagDir = dagDir;
+
+        logger.Info(() => $"Using ethash as hash algorithm");
     }
 
     private int numCaches; // Maximum number of caches to keep before eviction (only init, don't modify)
     private readonly object cacheLock = new();
     private readonly Dictionary<ulong, Dag> caches = new();
     private Dag future;
-    private readonly string dagDir;
+    private string dagDir;
+
+    public string AlgoName {get; } = "ethash";
+
+    public unsafe string GetDefaultDagDirectory()
+    {
+        var chars = new byte[512];
+
+        fixed (byte* data = chars)
+        {
+            if(EthHash.ethash_get_default_dirname(data, chars.Length))
+            {
+                int length;
+                for(length = 0; length < chars.Length; length++)
+                {
+                    if(data[length] == 0)
+                        break;
+                }
+
+                return Encoding.UTF8.GetString(data, length);
+            }
+        }
+
+        return null;
+    }
 
     public void Dispose()
     {
@@ -26,7 +56,7 @@ public class EthashFull : IDisposable
             value.Dispose();
     }
 
-    public async Task<Dag> GetDagAsync(ulong block, ILogger logger, CancellationToken ct)
+    public async Task<IEthashDag> GetDagAsync(ulong block, ILogger logger, CancellationToken ct)
     {
         var epoch = block / EthereumConstants.EpochLength;
         Dag result;
