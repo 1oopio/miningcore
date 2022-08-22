@@ -4008,8 +4008,8 @@
     },
 
     "callisto": {
-        "name": "Callisto Network",
-        "canonicalName": "Callisto-Network",
+        "name": "Callisto",
+        "canonicalName": "Callisto",
         "symbol": "CLO",
         "family": "ethereum",
         "website": "",
