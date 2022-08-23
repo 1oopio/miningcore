@@ -114,7 +114,7 @@ public class EtcDag : IEthashDag
             result = value.result.value;
         }
 
-        messageBus?.SendTelemetry("etchash", TelemetryCategory.Hash, sw.Elapsed, value.success);
+        messageBus?.SendTelemetry("Etchash", TelemetryCategory.Hash, sw.Elapsed, value.success);
 
         return value.success;
     }
