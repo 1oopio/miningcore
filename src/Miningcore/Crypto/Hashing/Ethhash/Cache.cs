@@ -1,9 +1,10 @@
 using Miningcore.Blockchain.Ethereum;
 using Miningcore.Contracts;
+using Miningcore.Crypto.Hashing.Ethash;
 using Miningcore.Native;
 using NLog;
 
-namespace Miningcore.Crypto.Hashing.Ethash;
+namespace Miningcore.Crypto.Hashing.Ethhash;
 
 public class Cache : IDisposable
 {

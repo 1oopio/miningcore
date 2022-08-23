@@ -10,11 +10,12 @@ namespace Miningcore.Blockchain.Ethereum;
 
 public class EthereumJob
 {
-    public EthereumJob(string id, EthereumBlockTemplate blockTemplate, ILogger logger)
+    public EthereumJob(string id, EthereumBlockTemplate blockTemplate, ILogger logger, IEthashFull ethashFull)
     {
         Id = id;
         BlockTemplate = blockTemplate;
         this.logger = logger;
+        this.ethashFull = ethashFull;
 
         var target = blockTemplate.Target;
         if(target.StartsWith("0x"))
@@ -29,6 +30,7 @@ public class EthereumJob
     public EthereumBlockTemplate BlockTemplate { get; }
     private readonly uint256 blockTarget;
     private readonly ILogger logger;
+    private readonly IEthashFull ethashFull;
 
     public record SubmitResult(Share Share, string FullNonceHex = null, string HeaderHash = null, string MixHash = null);
 
@@ -52,7 +54,7 @@ public class EthereumJob
     }
 
     public async Task<SubmitResult> ProcessShareAsync(StratumConnection worker,
-        string workerName, string fullNonceHex, EthashFull ethash, CancellationToken ct)
+        string workerName, string fullNonceHex, CancellationToken ct)
     {
         // dupe check
         lock(workerNonces)
@@ -66,7 +68,7 @@ public class EthereumJob
             throw new StratumException(StratumError.MinusOne, "bad nonce " + fullNonceHex);
 
         // get dag for block
-        var dag = await ethash.GetDagAsync(BlockTemplate.Height, logger, ct);
+        var dag = await ethashFull.GetDagAsync(BlockTemplate.Height, logger, ct);
 
         // compute
         if(!dag.Compute(logger, BlockTemplate.Header.HexToByteArray(), fullNonce, out var mixDigest, out var resultBytes))

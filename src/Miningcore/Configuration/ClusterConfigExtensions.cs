@@ -4,6 +4,7 @@ using Autofac;
 using JetBrains.Annotations;
 using Miningcore.Crypto;
 using Miningcore.Crypto.Hashing.Algorithms;
+using Miningcore.Crypto.Hashing.Ethash;
 using NBitcoin;
 using Newtonsoft.Json;
 
@@ -167,6 +168,18 @@ public partial class CryptonoteCoinTemplate
 public partial class EthereumCoinTemplate
 {
     #region Overrides of CoinTemplate
+
+    public EthereumCoinTemplate()
+    {
+        ethashFullValue = new Lazy<IEthashFull>(() =>
+            EthashFactory.GetEthashFull(ComponentContext, Ethasher));
+    }
+
+    private readonly Lazy<IEthashFull> ethashFullValue;
+
+    public IComponentContext ComponentContext { get; [UsedImplicitly] init; }
+
+    public IEthashFull EthashFull => ethashFullValue.Value;
 
     public override string GetAlgorithmName()
     {

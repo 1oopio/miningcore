@@ -27,7 +27,7 @@ using Miningcore.Api.Responses;
 using Miningcore.Configuration;
 using Miningcore.Crypto.Hashing.Algorithms;
 using Miningcore.Crypto.Hashing.Equihash;
-using Miningcore.Crypto.Hashing.Ethash;
+using Miningcore.Crypto.Hashing.Ethhash;
 using Miningcore.Crypto.Hashing.Etchash;
 using Miningcore.Extensions;
 using Miningcore.Messaging;

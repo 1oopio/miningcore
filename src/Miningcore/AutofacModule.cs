@@ -12,6 +12,7 @@ using Miningcore.Blockchain.Kaspa;
 using Miningcore.Configuration;
 using Miningcore.Crypto;
 using Miningcore.Crypto.Hashing.Equihash;
+using Miningcore.Crypto.Hashing.Ethash;
 using Miningcore.Messaging;
 using Miningcore.Mining;
 using Miningcore.Notifications;
@@ -80,6 +81,18 @@ public class AutofacModule : Module
             .Where(t => t.GetCustomAttributes<IdentifierAttribute>().Any() &&
                 t.GetInterfaces().Any(i => i.IsAssignableFrom(typeof(IHashAlgorithm))))
             .Named<IHashAlgorithm>(t=> t.GetCustomAttributes<IdentifierAttribute>().First().Name)
+            .PropertiesAutowired();
+
+        builder.RegisterAssemblyTypes(ThisAssembly)
+            .Where(t => t.GetCustomAttributes<IdentifierAttribute>().Any() &&
+                t.GetInterfaces().Any(i => i.IsAssignableFrom(typeof(IEthashFull))))
+            .Named<IEthashFull>(t=> t.GetCustomAttributes<IdentifierAttribute>().First().Name)
+            .PropertiesAutowired();
+
+        builder.RegisterAssemblyTypes(ThisAssembly)
+            .Where(t => t.GetCustomAttributes<IdentifierAttribute>().Any() &&
+                t.GetInterfaces().Any(i => i.IsAssignableFrom(typeof(IEthashDag))))
+            .Named<IEthashDag>(t=> t.GetCustomAttributes<IdentifierAttribute>().First().Name)
             .PropertiesAutowired();
 
         builder.RegisterAssemblyTypes(ThisAssembly)
