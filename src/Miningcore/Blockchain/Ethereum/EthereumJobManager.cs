@@ -356,8 +356,10 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
             // create it if necessary
             Directory.CreateDirectory(dagDir);
 
+            logger.Info(() => $"Ethasher is: {coin.Ethasher}");
+
             // setup ethash
-            coin.EthashFull.Setup(3, dagDir); // TODO: Maybe create a different instance every time? Does this even work?
+            coin.EthashFull.Setup(3, dagDir, logger); // TODO: Maybe create a different instance every time? Does this even work?
             /* coin.EthashFull = new coin.EthashFull(logger, dagDir);
             ethash = new EthashFull(3, dagDir); */
         }
