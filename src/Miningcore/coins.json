@@ -4054,7 +4054,8 @@
             "uncle": "https://blockscout.com/etc/mainnet/block/$height$"
         },
         "explorerTxLink": "https://blockscout.com/etc/mainnet/tx/{0}",
-        "explorerAccountLink": "https://blockscout.com/etc/mainnet/tx/{0}"
+        "explorerAccountLink": "https://blockscout.com/etc/mainnet/tx/{0}",
+        "ethasher": "etchash"
     },
 
     "ethereum": {
