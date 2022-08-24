@@ -16,4 +16,5 @@ public interface IEthashFull : IDisposable
     void Setup(int numCaches, string dagDir, ILogger logger);
     Task<IEthashDag> GetDagAsync(ulong block, ILogger logger, CancellationToken ct);
 
+    string AlgoName { get; }
 }

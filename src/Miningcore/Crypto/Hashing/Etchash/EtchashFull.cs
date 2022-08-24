@@ -26,6 +26,8 @@ public class EtchashFull : IEthashFull
     private EtcDag future;
     private string dagDir;
 
+    public string AlgoName {get; } = "etchash";
+
     public unsafe string GetDefaultDagDirectory()
     {
         var chars = new byte[512];
@@ -53,6 +55,7 @@ public class EtchashFull : IEthashFull
         foreach(var value in caches.Values)
             value.Dispose();
     }
+
 
     public async Task<IEthashDag> GetDagAsync(ulong block, ILogger logger, CancellationToken ct)
     {

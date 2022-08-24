@@ -183,7 +183,7 @@ public partial class EthereumCoinTemplate
 
     public override string GetAlgorithmName()
     {
-        return Ethasher;
+        return EthashFull.AlgoName;
     }
 
     #endregion

@@ -26,6 +26,8 @@ public class EthashFull : IEthashFull
     private Dag future;
     private string dagDir;
 
+    public string AlgoName {get; } = "ethash";
+
     public unsafe string GetDefaultDagDirectory()
     {
         var chars = new byte[512];
