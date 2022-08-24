@@ -10,12 +10,14 @@ namespace Miningcore.Crypto.Hashing.Ethhash;
 [Identifier("ethhash")]
 public class EthashFull : IEthashFull
 {
-    public void Setup(int numCaches, string dagDir)
+    public void Setup(int numCaches, string dagDir, ILogger logger)
     {
         Contract.Requires<ArgumentException>(!string.IsNullOrEmpty(dagDir));
 
         this.numCaches = numCaches;
         this.dagDir = dagDir;
+
+        logger.Info(() => $"Using ethash as hash algorithm");
     }
 
     private int numCaches; // Maximum number of caches to keep before eviction (only init, don't modify)

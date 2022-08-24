@@ -13,7 +13,7 @@ public interface IEthashDag : IDisposable
 public interface IEthashFull : IDisposable
 {
     string GetDefaultDagDirectory();
-    void Setup(int numCaches, string dagDir);
+    void Setup(int numCaches, string dagDir, ILogger logger);
     Task<IEthashDag> GetDagAsync(ulong block, ILogger logger, CancellationToken ct);
 
 }
