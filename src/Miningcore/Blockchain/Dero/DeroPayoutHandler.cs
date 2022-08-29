@@ -389,23 +389,50 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
         if(balances.Length > 0)
         {
-            var maxBatchSize = extraPoolPaymentProcessingConfig.PayoutBatchSize;
-            if (maxBatchSize <= 0 || maxBatchSize > 32)
-            {
-                maxBatchSize = 15;
+            Balance[] regularAddresses = balances
+                .Where(x =>
+                {
+                    return !(x.Address.Length > 5 && x.Address[4] == 'i');
+                })
+                .ToArray();
+            Balance[] integratedAddresses = balances
+                .Where(x =>
+                {
+                    return (x.Address.Length > 5 && x.Address[4] == 'i');
+                })
+                .ToArray();
+
+            // Payout regular addresses
+            if (regularAddresses.Length > 0)
+            { 
+                var maxBatchSize = extraPoolPaymentProcessingConfig.PayoutBatchSize;
+                if (maxBatchSize <= 0 || maxBatchSize > 32)
+                {
+                    maxBatchSize = 15;
+                }
+                var pageSize = maxBatchSize;
+                var pageCount = (int) Math.Ceiling((double) regularAddresses.Length / pageSize);
+
+                for(var i = 0; i < pageCount; i++)
+                {
+                    var page = regularAddresses
+                        .Skip(i * pageSize)
+                        .Take(pageSize)
+                        .ToArray();
+
+                    if(!await PayoutBatch(page, ct))
+                        break;
+                }
             }
-            var pageSize = maxBatchSize;
-            var pageCount = (int) Math.Ceiling((double) balances.Length / pageSize);
 
-            for(var i = 0; i < pageCount; i++)
+            // Payout integrated addresses one by one
+            if (integratedAddresses.Length > 0)
             {
-                var page = balances
-                    .Skip(i * pageSize)
-                    .Take(pageSize)
-                    .ToArray();
-
-                if(!await PayoutBatch(page, ct))
-                    break;
+                foreach(var integratedAddress in integratedAddresses)
+                {
+                    if(!await PayoutBatch(new List<Balance> { integratedAddress }.ToArray(), ct))
+                        break;
+                }
             }
         }
     }
