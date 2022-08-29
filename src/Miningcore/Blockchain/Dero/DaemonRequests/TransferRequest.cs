@@ -6,6 +6,9 @@ public class TransferDestination
 {
     public string Destination { get; set; }
     public ulong Amount { get; set; }
+
+    [JsonProperty("payload_rpc")]
+    public PayloadRpc[] PayloadRpc { get; set; }
 }
 
 public class TransferRequest

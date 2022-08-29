@@ -17,7 +17,7 @@ using Miningcore.Time;
 using Miningcore.Util;
 using Newtonsoft.Json;
 using Contract = Miningcore.Contracts.Contract;
-using CNC = Miningcore.Blockchain.Dero.DeroCommands;
+using static Miningcore.Util.ActionUtils;
 
 namespace Miningcore.Blockchain.Dero;
 
@@ -52,9 +52,15 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
     protected override string LogCategory => "Dero Payout Handler";
 
-    private async Task<bool> HandleTransferResponseAsync(RpcResponse<TransferResponse> response, params Balance[] balances)
+    private async Task<bool> HandleTransferResponseAsync(RpcResponse<TransferResponse> response, params DeroBalance[] deroBalances)
     {
         var coin = poolConfig.Template.As<DeroCoinTemplate>();
+
+        Balance[] balances = deroBalances
+            .Select(x =>
+            {
+                return x.Balance;
+            }).ToArray();
 
         if(response.Error == null)
         {
@@ -80,14 +86,33 @@ public class DeroPayoutHandler : PayoutHandlerBase,
     {
         if(!networkType.HasValue)
         {
-            var infoResponse = await rpcClient.ExecuteAsync(logger, CNC.GetInfo, ct, true);
-            var info = infoResponse.Response.ToObject<GetInfoResponse>();
+            var response = await rpcClient.ExecuteAsync<GetInfoResponse>(logger, DeroCommands.GetInfo, ct);
+            var info = response.Response;
 
             if(info == null)
                 throw new PoolStartupException($"{LogCategory}] Unable to determine network type", poolConfig.Id);
 
             networkType = info.IsTestnet ? DeroNetworkType.Test : DeroNetworkType.Main;
         }
+    }
+
+    private async Task<DeroBalance> SplitIntegratedAddress(Balance balance, CancellationToken ct)
+    {
+        var request = new SplitIntegratedAddressRequest { IntegratedAddress = balance.Address };
+        var splitResponse = await rpcClientWallet.ExecuteAsync<SplitIntegratedAddressResponse>(logger, DeroWalletCommands.SplitIntegratedAddress, ct, request);
+
+        if(splitResponse == null)
+            throw new Exception($"{LogCategory}] Unable to split integrated address of type: {balance.Address}");
+
+        if (splitResponse.Error != null)
+            throw new Exception($"{LogCategory}] Unable to split integrated address of type: {balance.Address}: {splitResponse.Error.Message}");
+
+        return new DeroBalance
+        {
+            Address = splitResponse.Response.Address,
+            PayloadRpc = splitResponse.Response.PayloadRpc,
+            Balance = balance
+        };
     }
 
     private async Task<bool> EnsureBalance(decimal requiredAmount, DeroCoinTemplate coin, CancellationToken ct)
@@ -100,8 +125,8 @@ public class DeroPayoutHandler : PayoutHandlerBase,
             return false;
         }
 
-        var unlockedBalance = Math.Floor(response.Response.UnlockedBalance / coin.SmallestUnit);
-        var balance = Math.Floor(response.Response.Balance / coin.SmallestUnit);
+        var unlockedBalance = response.Response.UnlockedBalance / coin.SmallestUnit;
+        var balance = response.Response.Balance / coin.SmallestUnit;
 
         if(unlockedBalance < requiredAmount)
         {
@@ -113,25 +138,26 @@ public class DeroPayoutHandler : PayoutHandlerBase,
         return true;
     }
 
-    private async Task<bool> PayoutBatch(Balance[] balances, CancellationToken ct)
+    private async Task<bool> PayoutBatch(DeroBalance[] deroBalances, CancellationToken ct)
     {
         var coin = poolConfig.Template.As<DeroCoinTemplate>();
 
         // ensure there's enough balance
-        if(!await EnsureBalance(balances.Sum(x => x.Amount), coin, ct))
+        if(!await EnsureBalance(deroBalances.Sum(x => x.Balance.Amount), coin, ct))
             return false;
 
         // build request
         var request = new TransferRequest
         {
-            Transfers = balances
-                .Where(x => x.Amount > 0)
+            Transfers = deroBalances
+                .Where(x => x.Balance.Amount > 0)
                 .Select(x =>
                 {
                     return new TransferDestination
                     {
                         Destination = x.Address,
-                        Amount = (ulong) Math.Floor(x.Amount * coin.SmallestUnit)
+                        PayloadRpc = x.PayloadRpc,
+                        Amount = (ulong) Math.Floor(x.Balance.Amount * coin.SmallestUnit)
                     };
                 }).ToArray(),
         };
@@ -139,12 +165,12 @@ public class DeroPayoutHandler : PayoutHandlerBase,
         if(request.Transfers.Length == 0)
             return true;
 
-        logger.Info(() => $"[{LogCategory}] Paying {FormatAmount(balances.Sum(x => x.Amount))} to {balances.Length} addresses:\n{string.Join("\n", balances.OrderByDescending(x => x.Amount).Select(x => $"{FormatAmount(x.Amount)} to {x.Address}"))}");
+        logger.Info(() => $"[{LogCategory}] Paying {FormatAmount(deroBalances.Sum(x => x.Balance.Amount))} to {deroBalances.Length} addresses:\n{string.Join("\n", deroBalances.OrderByDescending(x => x.Balance.Amount).Select(x => $"{FormatAmount(x.Balance.Amount)} to {x.Address}"))}");
 
         // send command
         var transferResponse = await rpcClientWallet.ExecuteAsync<TransferResponse>(logger, DeroWalletCommands.Transfer, ct, request);
 
-        return await HandleTransferResponseAsync(transferResponse, balances);
+        return await HandleTransferResponseAsync(transferResponse, deroBalances);
     }
 
     #region IPayoutHandler
@@ -210,7 +236,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
             var blockHeight = heightBlocks.Key;
 
             var rpcResult = await rpcClient.ExecuteAsync<GetBlockHeaderResponse>(logger,
-                CNC.GetBlockHeaderByHeight, ct,
+                DeroCommands.GetBlockHeaderByHeight, ct,
                 new GetBlockHeaderByTopoHeightRequest
                 {
                     TopoHeight = blockHeight
@@ -350,7 +376,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
             if (networkType == DeroNetworkType.Test)
                requiredConnections = 1;
 
-            var infoResponse = await rpcClient.ExecuteAsync<GetInfoResponse>(logger, CNC.GetInfo, ct);
+            var infoResponse = await rpcClient.ExecuteAsync<GetInfoResponse>(logger, DeroCommands.GetInfo, ct);
             if (infoResponse.Error != null || infoResponse.Response == null ||
                 infoResponse.Response.IncomingConnectionsCount + infoResponse.Response.OutgoingConnectionsCount < requiredConnections)
             {
@@ -389,17 +415,38 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
         if(balances.Length > 0)
         {
+            var deroBalanceTasks = balances
+                .Select(async x =>
+                {
+                    if(x.Address.Length > 5 && x.Address[4] == 'i')
+                    {
+                        return await SplitIntegratedAddress(x, ct);
+                    } else
+                    {
+                        return await Task.FromResult(new DeroBalance
+                        {
+                            Address = x.Address,
+                            Balance = x
+                        });
+                    }
+                }).ToArray();
+
+            await Guard(() => Task.WhenAll(deroBalanceTasks),
+                  ex => logger.Error(ex));
+
+            var deroBalances = deroBalanceTasks.Where(x => x.IsCompletedSuccessfully).Select(x => x.Result).ToArray();
+
             var maxBatchSize = extraPoolPaymentProcessingConfig.PayoutBatchSize;
-            if (maxBatchSize <= 0 || maxBatchSize > 32)
+            if(maxBatchSize <= 0 || maxBatchSize > 32)
             {
                 maxBatchSize = 15;
             }
             var pageSize = maxBatchSize;
-            var pageCount = (int) Math.Ceiling((double) balances.Length / pageSize);
+            var pageCount = (int) Math.Ceiling((double) deroBalances.Length / pageSize);
 
             for(var i = 0; i < pageCount; i++)
             {
-                var page = balances
+                var page = deroBalances
                     .Skip(i * pageSize)
                     .Take(pageSize)
                     .ToArray();
@@ -407,6 +454,9 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                 if(!await PayoutBatch(page, ct))
                     break;
             }
+
+
+
         }
     }
 
