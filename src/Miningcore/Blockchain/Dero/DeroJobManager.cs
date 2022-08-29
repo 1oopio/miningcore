@@ -38,7 +38,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
     private DaemonEndpointConfig[] daemonEndpoints;
     private RpcClient rpc;
-    private RpcClient walletRpc;
+    private RpcClient[] walletRpcs;
     private readonly IMasterClock clock;
     private DeroNetworkType networkType;
     private DaemonEndpointConfig[] walletDaemonEndpoints;
@@ -385,9 +385,15 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
         if(clusterConfig.PaymentProcessing?.Enabled == true && poolConfig.PaymentProcessing?.Enabled == true)
         {
-            // also setup wallet daemon
-            walletRpc = new RpcClient(walletDaemonEndpoints.First(), jsonSerializerSettings, messageBus, poolConfig.Id);
-            walletRpc.SetHideCharSetFromContentType(true);
+            var walletRpcsList = new List<RpcClient>();
+            // also setup wallet daemons
+            foreach(var walletDaemonEndpoint in walletDaemonEndpoints)
+            {
+                var walletRpc = new RpcClient(walletDaemonEndpoint, jsonSerializerSettings, messageBus, poolConfig.Id);
+                walletRpc.SetHideCharSetFromContentType(true);
+                walletRpcsList.Add(walletRpc);
+            }
+            walletRpcs = walletRpcsList.ToArray();
         }
     }
 
@@ -402,18 +408,23 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         if(clusterConfig.PaymentProcessing?.Enabled == true && poolConfig.PaymentProcessing?.Enabled == true)
         {
             // test wallet daemons
-            var responses2 = await walletRpc.ExecuteAsync<GetAddressResponse>(logger, DeroWalletCommands.GetAddress, ct);
-
-            if (responses2.Response != null)
+            foreach(var walletRpc in walletRpcs)
             {
-                if (responses2.Response.Address != poolConfig.Address)
+                var responses2 = await walletRpc.ExecuteAsync<GetAddressResponse>(logger, DeroWalletCommands.GetAddress, ct);
+
+                if(responses2.Response != null)
                 {
-                    logger.Warn(() => $"Pool address in wallet differs from configuration! ${poolConfig.Address} vs ${responses2.Response.Address}");
+                    if(responses2.Response.Address != poolConfig.Address)
+                    {
+                        logger.Warn(() => $"Pool address in wallet differs from configuration! ${poolConfig.Address} vs ${responses2.Response.Address}");
+                        return false;
+                    }
+                }
+                if (responses2.Error != null)
+                {
                     return false;
                 }
             }
-
-            return responses2.Error == null;
         }
 
         return true;
@@ -473,11 +484,14 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
         if(clusterConfig.PaymentProcessing?.Enabled == true && poolConfig.PaymentProcessing?.Enabled == true)
         {
-            var addressResponse = await walletRpc.ExecuteAsync<GetAddressResponse>(logger, DeroWalletCommands.GetAddress, ct);
+            foreach(var walletRpc in walletRpcs)
+            {
+                var addressResponse = await walletRpc.ExecuteAsync<GetAddressResponse>(logger, DeroWalletCommands.GetAddress, ct);
 
-            // ensure pool owns wallet
-            if(clusterConfig.PaymentProcessing?.Enabled == true && addressResponse.Response?.Address != poolConfig.Address)
-                throw new PoolStartupException($"Wallet-Daemon does not own pool-address '{poolConfig.Address}'", poolConfig.Id);
+                // ensure pool owns wallet
+                if(clusterConfig.PaymentProcessing?.Enabled == true && addressResponse.Response?.Address != poolConfig.Address)
+                    throw new PoolStartupException($"Wallet-Daemon does not own pool-address '{poolConfig.Address}'", poolConfig.Id);
+            }
         }
 
         var info = infoResponse.Response.ToObject<GetInfoResponse>();

@@ -46,7 +46,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
     private readonly IComponentContext ctx;
     private RpcClient rpcClient;
-    private RpcClient rpcClientWallet;
+    private RpcClient[] rpcClientWallets;
     private DeroPaymentProcessingConfigExtra extraPoolPaymentProcessingConfig;
     private DeroNetworkType? networkType;
 
@@ -92,7 +92,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
     private async Task<bool> EnsureBalance(decimal requiredAmount, DeroCoinTemplate coin, CancellationToken ct)
     {
-        var response = await rpcClientWallet.ExecuteAsync<GetBalanceResponse>(logger, DeroWalletCommands.GetBalance, ct);
+        var response = await rpcClientWallets.First().ExecuteAsync<GetBalanceResponse>(logger, DeroWalletCommands.GetBalance, ct);
 
         if(response.Error != null)
         {
@@ -142,7 +142,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
         logger.Info(() => $"[{LogCategory}] Paying {FormatAmount(balances.Sum(x => x.Amount))} to {balances.Length} addresses:\n{string.Join("\n", balances.OrderByDescending(x => x.Amount).Select(x => $"{FormatAmount(x.Amount)} to {x.Address}"))}");
 
         // send command
-        var transferResponse = await rpcClientWallet.ExecuteAsync<TransferResponse>(logger, DeroWalletCommands.Transfer, ct, request);
+        var transferResponse = await rpcClientWallets.First().ExecuteAsync<TransferResponse>(logger, DeroWalletCommands.Transfer, ct, request);
 
         return await HandleTransferResponseAsync(transferResponse, balances);
     }
@@ -188,8 +188,15 @@ public class DeroPayoutHandler : PayoutHandlerBase,
             })
             .ToArray();
 
-        rpcClientWallet = new RpcClient(walletDaemonEndpoints.First(), jsonSerializerSettings, messageBus, pc.Id);
-        rpcClientWallet.SetHideCharSetFromContentType(true);
+        var walletRpcsList = new List<RpcClient>();
+        // also setup wallet daemons
+        foreach(var walletDaemonEndpoint in walletDaemonEndpoints)
+        {
+            var walletRpc = new RpcClient(walletDaemonEndpoint, jsonSerializerSettings, messageBus, pc.Id);
+            walletRpc.SetHideCharSetFromContentType(true);
+            walletRpcsList.Add(walletRpc);
+        }
+        rpcClientWallets = walletRpcsList.ToArray();
 
         // detect network
         await UpdateNetworkTypeAsync(ct);
@@ -230,8 +237,8 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
             var blockHeader = rpcResult.Response.BlockHeader;
 
+            // Get block reward
             decimal blockConfirmedReward = 0;
-
             if ((blockHeader.Depth >= DeroConstants.PayoutMinBlockConfirmations) && !blockHeader.IsOrphaned)
             {
                 var request = new GetTransfersRequest
@@ -241,34 +248,81 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                     Coinbase = true,
                 };
 
-                var transfers = await rpcClientWallet.ExecuteAsync<GetTransfersResponse>(logger, DeroWalletCommands.GetTransfers, ct, request);
+                var detectedRewards = new List<decimal>();
+                var detectionFailed = false;
 
-                if(transfers.Error != null)
+                // We are checking all wallets to return the same data for the actual block reward check
+                foreach(var rpcClientWallet in rpcClientWallets)
                 {
-                    logger.Debug(() => $"[{LogCategory}]Wallet Daemon reports error '{rpcResult.Error.Message}' (Code {rpcResult.Error.Code}) for block {blockHeight}");
-                    continue;
+                    var transfers = await rpcClientWallet.ExecuteAsync<GetTransfersResponse>(logger, DeroWalletCommands.GetTransfers, ct, request);
+
+                    if(transfers.Error != null)
+                    {
+                        logger.Debug(() => $"[{LogCategory}]Wallet Daemon reports error '{rpcResult.Error.Message}' (Code {rpcResult.Error.Code}) for block {blockHeight}");
+                        detectionFailed = true;
+                        break;
+                    }
+
+                    if(transfers.Response?.Entries != null)
+                    {
+                        var foundTransfer = transfers.Response.Entries.Where(x => x.TopoHeight == blockHeader.TopoHeight && x.Coinbase);
+
+                        if(foundTransfer.Count() == 1)
+                        {
+                            var detectedBlockReward = (foundTransfer.First().Amount / coin.SmallestUnit) * coin.BlockrewardMultiplier;
+
+                            // Now we need to split the reward between all (mini)blocks
+                            detectedBlockReward /= heightBlocks.Count();
+
+                            detectedRewards.Add(detectedBlockReward);
+                        }
+                        else
+                        {
+                            logger.Warn(() => $"[{LogCategory} Found {foundTransfer.Count()} matching transactions in wallet for block {blockHeight}, this should not be.");
+                        }
+                    }
                 }
 
-                if(transfers.Response?.Entries != null)
+                if (detectionFailed)
                 {
-                    var foundTransfer = transfers.Response.Entries.Where(x => x.TopoHeight == blockHeader.TopoHeight && x.Coinbase);
-
-                    if(foundTransfer.Count() == 1)
+                    continue;
+                }
+                else
+                {
+                    if (rpcClientWallets.Length > 1)
                     {
-                        blockConfirmedReward = (foundTransfer.First().Amount / coin.SmallestUnit) * coin.BlockrewardMultiplier;
-
-                        logger.Info(() => $"[{LogCategory}] Unlocked block {blockHeight} worth {FormatAmount(blockConfirmedReward)} needs to be split between {heightBlocks.Count()} mini blocks");
-
-                        // Now we need to split the reward between all (mini)blocks
-                        blockConfirmedReward /= heightBlocks.Count();
+                        if(detectedRewards.Count() > 0)
+                        {
+                            var rewardMissmatch = false;
+                            var firstReward = detectedRewards.First();
+                            foreach(var detectedBlockReward in detectedRewards)
+                            {
+                                if (detectedBlockReward != firstReward)
+                                {
+                                    rewardMissmatch = true;
+                                    break;
+                                }
+                            }
+                            if (rewardMissmatch)
+                            {
+                                logger.Error(() => $"[{LogCategory} Found missmatch of rewards in transactions from wallets for block {blockHeight}, this should not be.");
+                                continue;
+                            }
+                        }
                     }
                     else
                     {
-                        logger.Warn(() => $"[{LogCategory} Found {foundTransfer.Count()} matching transactions in wallet for block {blockHeight}, this should not be.");
+                        if (detectedRewards.Count() > 0)
+                        {
+                            blockConfirmedReward = detectedRewards.First();
+                            logger.Info(() => $"[{LogCategory}] Unlocked block {blockHeight} worth {FormatAmount(blockConfirmedReward)} needs to be split between {heightBlocks.Count()} mini blocks");
+                        }
                     }
                 }
             }
 
+
+            // Update all mini-blocks with the same height.
             foreach(var block in heightBlocks)
             {
                 // update progress
