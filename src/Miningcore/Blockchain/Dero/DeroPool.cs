@@ -68,14 +68,14 @@ public class DeroPool : PoolBase
         {
             await connection.RespondErrorAsync(StratumError.MinusOne, "address is blacklisted", request.Id);
 
-            logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {context.Miner} for {loginFailureBanTimeout.TotalSeconds} sec");
+            logger.Info(() => $"[{connection.ConnectionId}] Banning blacklisted worker {context.Miner} for {loginFailureBanTimeout.TotalSeconds} sec");
 
             banManager.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
 
             Disconnect(connection);
             return;
         }
-        
+
         // validate login
         var result = await manager.ValidateAddress(addressToValidate);
 
