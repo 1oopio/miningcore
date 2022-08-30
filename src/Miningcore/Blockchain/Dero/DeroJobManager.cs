@@ -1,6 +1,7 @@
 using System.Reactive;
 using System.Reactive.Linq;
 using Autofac;
+using Miningcore.Blockchain.Dero.Configuration;
 using Miningcore.Blockchain.Dero.DaemonRequests;
 using Miningcore.Blockchain.Dero.DaemonResponses;
 using Miningcore.Blockchain.Dero.StratumRequests;
@@ -43,6 +44,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
     private DeroNetworkType networkType;
     private DaemonEndpointConfig[] walletDaemonEndpoints;
     private DeroCoinTemplate coin;
+    private DeroPoolConfigExtra extraPoolConfig;
 
     protected async Task<bool> UpdateJob(CancellationToken ct, string via = null, string json = null)
     {
@@ -209,6 +211,9 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
     public override void Configure(PoolConfig pc, ClusterConfig cc)
     {
+
+        extraPoolConfig = pc.Extra.SafeExtensionDataAs<DeroPoolConfigExtra>();
+
         Contract.RequiresNonNull(pc);
         Contract.RequiresNonNull(cc);
 
@@ -283,6 +288,11 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         }
 
         return true;
+    }
+
+    public bool IsAddressBlacklisted(string address)
+    {
+        return extraPoolConfig.BlacklistedAddresses.Contains(address);
     }
 
     public BlockchainStats BlockchainStats { get; } = new();
