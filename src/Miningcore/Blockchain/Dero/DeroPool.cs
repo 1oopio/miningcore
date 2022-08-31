@@ -65,16 +65,7 @@ public class DeroPool : PoolBase
 
         var blacklisted = manager.IsAddressBlacklisted(addressToValidate);
         if (blacklisted)
-        {
-            await connection.RespondErrorAsync(StratumError.MinusOne, "address is blacklisted", request.Id);
-
-            logger.Info(() => $"[{connection.ConnectionId}] Banning blacklisted worker {context.Miner} for {loginFailureBanTimeout.TotalSeconds} sec");
-
-            banManager.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
-
-            Disconnect(connection);
-            return;
-        }
+            throw new StratumException(StratumError.MinusOne, "address is blacklisted");
 
         // validate login
         var result = await manager.ValidateAddress(addressToValidate);
