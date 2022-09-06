@@ -44,6 +44,7 @@ public static class DeroCommands
 public static class DeroWalletCommands
 {
     public const string GetBalance = "GetBalance";
+    public const string SplitIntegratedAddress = "SplitIntegratedAddress";
     public const string GetAddress = "GetAddress";
     public const string GetTransfers = "GetTransfers";
     public const string GetTransferbyTXID = "GetTransferbyTXID";
