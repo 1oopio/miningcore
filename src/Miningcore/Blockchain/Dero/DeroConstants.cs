@@ -34,6 +34,7 @@ public static class DeroConstants
 public static class DeroCommands
 {
     public const string GetInfo = "DERO.GetInfo";
+    public const string GetHeight = "DERO.GetHeight";
     public const string GetBlockTemplate = "DERO.GetBlockTemplate";
     public const string SubmitBlock = "DERO.SubmitBlock";
     public const string GetBlockHeaderByHash = "DERO.GetBlockHeaderByHash";
@@ -44,6 +45,7 @@ public static class DeroCommands
 public static class DeroWalletCommands
 {
     public const string GetBalance = "GetBalance";
+    public const string GetHeight = "GetHeight";
     public const string SplitIntegratedAddress = "SplitIntegratedAddress";
     public const string GetAddress = "GetAddress";
     public const string GetTransfers = "GetTransfers";
