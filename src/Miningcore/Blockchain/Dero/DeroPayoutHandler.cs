@@ -18,6 +18,7 @@ using Miningcore.Util;
 using Newtonsoft.Json;
 using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
+using Miningcore.Notifications.Messages;
 
 namespace Miningcore.Blockchain.Dero;
 
@@ -119,6 +120,12 @@ public class DeroPayoutHandler : PayoutHandlerBase,
     {
         var response = await rpcClientWallet.ExecuteAsync<GetBalanceResponse>(logger, DeroWalletCommands.GetBalance, ct);
 
+        if(response == null)
+        {
+            logger.Error(() => $"[{LogCategory}] Daemon command '{DeroWalletCommands.GetBalance}' returned no response");
+            return false;
+        }
+
         if(response.Error != null)
         {
             logger.Error(() => $"[{LogCategory}] Daemon command '{DeroWalletCommands.GetBalance}' returned error: {response.Error.Message} code {response.Error.Code}");
@@ -136,6 +143,35 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
         logger.Info(() => $"[{LogCategory}] Current balance is {FormatAmount(unlockedBalance)}");
         return true;
+    }
+
+    private async Task<decimal> MinBlockHeight(CancellationToken ct)
+    {
+        var nodeResponse = await rpcClient.ExecuteAsync<GetHeightResponse>(logger, DeroCommands.GetHeight, ct);
+        var walletResponse = await rpcClientWallet.ExecuteAsync<GetHeightResponse>(logger, DeroWalletCommands.GetHeight, ct);
+
+        if(nodeResponse == null || walletResponse == null)
+        {
+            logger.Error(() => $"[{LogCategory}] Daemon or wallet check height returned no response");
+            return 0;
+        }
+
+        if(nodeResponse.Error != null)
+        {
+            logger.Error(() => $"[{LogCategory}] Daemon command '{DeroCommands.GetHeight}' returned error: {nodeResponse.Error.Message} code {nodeResponse.Error.Code}");
+            return 0;
+        }
+
+        if(walletResponse.Error != null)
+        {
+            logger.Error(() => $"[{LogCategory}] Daemon command '{DeroWalletCommands.GetHeight}' returned error: {walletResponse.Error.Message} code {walletResponse.Error.Code}");
+            return 0;
+        }
+
+        var nodeHeight = nodeResponse.Response.Height;
+        var walletHeight = walletResponse.Response.Height;
+
+        return Math.Min(walletHeight, nodeHeight);
     }
 
     private async Task<bool> PayoutBatch(DeroBalance[] deroBalances, CancellationToken ct)
@@ -231,6 +267,13 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
         var blocksByHeight = blocks.GroupBy(x => x.BlockHeight);
 
+        decimal minBlockHeight = 0;
+        var minBlockHeightFailure = false;
+        if (blocks.Length > 0)
+        {
+            minBlockHeight = await MinBlockHeight(ct);
+        }
+
         foreach(var heightBlocks in blocksByHeight)
         {
             var blockHeight = heightBlocks.Key;
@@ -271,7 +314,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
                 if(transfers.Error != null)
                 {
-                    logger.Debug(() => $"[{LogCategory}]Wallet Daemon reports error '{rpcResult.Error.Message}' (Code {rpcResult.Error.Code}) for block {blockHeight}");
+                    logger.Debug(() => $"[{LogCategory}] Wallet Daemon reports error '{rpcResult.Error.Message}' (Code {rpcResult.Error.Code}) for block {blockHeight}");
                     continue;
                 }
 
@@ -290,7 +333,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                     }
                     else
                     {
-                        logger.Warn(() => $"[{LogCategory} Found {foundTransfer.Count()} matching transactions in wallet for block {blockHeight}, this should not be.");
+                        logger.Warn(() => $"[{LogCategory}] Found {foundTransfer.Count()} matching transactions in wallet for block {blockHeight}, this should not be.");
                     }
                 }
             }
@@ -325,6 +368,14 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                 // matured and spendable?
                 if(blockHeader.Depth >= DeroConstants.PayoutMinBlockConfirmations)
                 {
+                    // Make sure node and wallet are at least the same height as the block to verify
+                    if ((minBlockHeight - DeroConstants.PayoutMinBlockConfirmations) < block.BlockHeight)
+                    {
+                        logger.Error(() => $"[{LogCategory}] Either node or wallet has not catched up to {block.BlockHeight} got {minBlockHeight}");
+                        minBlockHeightFailure = true;
+                        continue;
+                    }
+
                     // We got no reward for the block candidate so its possible a orphaned (mini)block
                     if (blockConfirmedReward == 0)
                     {
@@ -342,6 +393,12 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                     messageBus.NotifyBlockUnlocked(poolConfig.Id, block, coin);
                 }
             }
+        }
+
+        if (minBlockHeightFailure)
+        {
+            var maxBlockHeight = blocks.Max(x => x.BlockHeight);
+            messageBus.SendMessage(new AdminNotification("Classify blocks failed", $"Pool {poolConfig.Id} Either node or wallet has not catched up got {minBlockHeight}, highest block to check: {maxBlockHeight}"));
         }
 
         return result.ToArray();
