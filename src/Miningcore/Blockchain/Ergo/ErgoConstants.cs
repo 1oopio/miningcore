@@ -6,7 +6,7 @@ namespace Miningcore.Blockchain.Ergo;
 
 public static class ErgoConstants
 {
-    public const uint ShareMultiplier = 256;
+    public const uint ShareMultiplier = 16777216; // 256^3
     public const decimal SmallestUnit = 1000000000;
     public static readonly Regex RegexChain = new("ergo-([^-]+)-.+", RegexOptions.Compiled);
 
