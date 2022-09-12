@@ -292,6 +292,9 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
     public bool IsAddressBlacklisted(string address)
     {
+        if (extraPoolConfig.BlacklistedAddresses == null || extraPoolConfig.BlacklistedAddresses.Length == 0)
+            return false;
+            
         return extraPoolConfig.BlacklistedAddresses.Contains(address);
     }
 
