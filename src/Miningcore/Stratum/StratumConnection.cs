@@ -404,7 +404,13 @@ public class StratumConnection
 
                 // Update client
                 RemoteEndpoint = new IPEndPoint(IPAddress.Parse(remoteAddress), int.Parse(remotePort));
-                logger.Info(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address}");
+                
+                // skip logging if IP is one of the proxy addresses
+                // otherwise the logs are flooded by the proxy's health-checks
+                if (!proxyAddresses.Any(x => x.Equals(RemoteEndpoint.Address)))
+                    logger.Info(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address}");
+                else
+                    logger.Debug(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address}");
             }
 
             else
