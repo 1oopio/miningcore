@@ -129,6 +129,10 @@ public class StatsRecorder : BackgroundService
 
             var pool = pools[poolId];
 
+            // remove stats before window if they already marked as removed
+             await readFaultPolicy.ExecuteAsync(() =>
+                cf.Run(con => shareRepo.DeleteRemovedSharesBeforeAsync(con, poolId, timeFrom, ct)));
+
             // fetch stats for window
             var result = await readFaultPolicy.ExecuteAsync(() =>
                 cf.Run(con => shareRepo.GetHashAccumulationBetweenAsync(con, poolId, timeFrom, now, ct)));
