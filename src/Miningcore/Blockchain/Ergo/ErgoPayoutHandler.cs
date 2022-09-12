@@ -281,7 +281,7 @@ public class ErgoPayoutHandler : PayoutHandlerBase,
 
     public virtual Task CalculateBlockEffortAsync(IMiningPool pool, Block block, double accumulatedBlockShareDiff, CancellationToken ct)
     {
-        block.Effort = accumulatedBlockShareDiff * ErgoConstants.ShareMultiplier / block.NetworkDifficulty;
+        block.Effort = accumulatedBlockShareDiff * ErgoConstants.ShareMultiplier * 65536 / block.NetworkDifficulty;
 
         return Task.FromResult(true);
     }
