@@ -5,8 +5,8 @@ using System.Reactive.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Microsoft.IO;
-using Miningcore.Blockchain.Bitcoin;
 using Miningcore.Blockchain.Ergo.Configuration;
+using Miningcore.Blockchain.Ergo.StratumResponses;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
 using Miningcore.JsonRpc;
@@ -59,8 +59,8 @@ public class ErgoPool : PoolBase
         {
             new object[]
             {
-                new object[] { BitcoinStratumMethods.SetDifficulty, connection.ConnectionId },
-                new object[] { BitcoinStratumMethods.MiningNotify, connection.ConnectionId }
+                new object[] { ErgoStratumMethods.SetDifficulty, connection.ConnectionId },
+                new object[] { ErgoStratumMethods.MiningNotify, connection.ConnectionId }
             }
         }
         .Concat(manager.GetSubscriberData(connection))
@@ -222,6 +222,41 @@ public class ErgoPool : PoolBase
         }
     }
 
+    private async Task SubmitHashrateAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
+    {
+        var request = tsRequest.Value;
+        var context = connection.ContextAs<ErgoWorkerContext>();
+
+        // validate worker
+        if(!context.IsAuthorized)
+            throw new StratumException(StratumError.UnauthorizedWorker, "unauthorized worker");
+        if(!context.IsSubscribed)
+            throw new StratumException(StratumError.NotSubscribed, "not subscribed");
+
+        // recognize activity
+        context.LastActivity = clock.Now;
+
+        await connection.RespondAsync(true, request.Id);
+
+        var hashrateRequest = request.ParamsAs<ErgoHashrateRequest>();
+
+        var lastAge = clock.Now - context.Stats.LastReportedHashrate;
+        context.Stats.ReportedHashrate = hashrateRequest.Hashrate;
+
+        if(lastAge > reportedHashrateInterval)
+        {
+            context.Stats.LastReportedHashrate = clock.Now;
+            ReportedHashrate reported = new ReportedHashrate
+            {
+                PoolId = poolConfig.Id,
+                Miner = context.Miner,
+                Worker = context.Worker,
+                Hashrate = hashrateRequest.Hashrate
+            };
+            messageBus.SendMessage(new StratumReportedHashrate(connection, reported));
+        }
+    }
+
     protected virtual async Task OnNewJobAsync(object[] jobParams)
     {
         currentJobParams = jobParams;
@@ -244,22 +279,22 @@ public class ErgoPool : PoolBase
         for(var i = 0; i < jobParamsActual.Length; i++)
             jobParamsActual[i] = jobParams[i];
 
-        var target = new BigRational(BitcoinConstants.Diff1 * (BigInteger) (1 / context.Difficulty * 0x10000), 0x10000).GetWholePart();
+        var target = new BigRational(ErgoConstants.Diff1 * (BigInteger) (1 / context.Difficulty * 0x10000), 0x10000).GetWholePart();
         jobParamsActual[6] = target.ToString();
 
         var notifyArgs = !context.IsNicehash ?
             new object[] { 1 } :  // send static diff of 1 since actual diff gets pre-multiplied to target
-            new object[] { context.Difficulty * BitcoinConstants.Pow2x32 };
+            new object[] { context.Difficulty * ErgoConstants.Pow2x32 };
 
-        await connection.NotifyAsync(BitcoinStratumMethods.SetDifficulty, notifyArgs);
+        await connection.NotifyAsync(ErgoStratumMethods.SetDifficulty, notifyArgs);
 
         // send target
-        await connection.NotifyAsync(BitcoinStratumMethods.MiningNotify, jobParamsActual);
+        await connection.NotifyAsync(ErgoStratumMethods.MiningNotify, jobParamsActual);
     }
 
     public override double HashrateFromShares(double shares, double interval)
     {
-        var multiplier = BitcoinConstants.Pow2x32 * ErgoConstants.ShareMultiplier;
+        var multiplier = ErgoConstants.Pow2x32 * ErgoConstants.ShareMultiplier;
         var result = shares * multiplier / interval;
 
         // add flat pool side hashrate bonus to account for miner dataset generation
@@ -335,16 +370,20 @@ public class ErgoPool : PoolBase
         {
             switch(request.Method)
             {
-                case BitcoinStratumMethods.Subscribe:
+                case ErgoStratumMethods.Subscribe:
                     await OnSubscribeAsync(connection, tsRequest);
                     break;
 
-                case BitcoinStratumMethods.Authorize:
+                case ErgoStratumMethods.Authorize:
                     await OnAuthorizeAsync(connection, tsRequest, ct);
                     break;
 
-                case BitcoinStratumMethods.SubmitShare:
+                case ErgoStratumMethods.SubmitShare:
                     await OnSubmitAsync(connection, tsRequest, ct);
+                    break;
+
+                case ErgoStratumMethods.Hashrate:
+                    await SubmitHashrateAsync(connection, tsRequest, ct);
                     break;
 
                 default:

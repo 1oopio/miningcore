@@ -164,7 +164,7 @@ public class DeroPool : PoolBase
         return result;
     }
 
-    private async Task OnSubmitHashrate(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
+    private async Task OnSubmitHashrateAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
         var request = tsRequest.Value;
         var context = connection.ContextAs<DeroWorkerContext>();
@@ -360,7 +360,7 @@ public class DeroPool : PoolBase
                     break;
 
                 case DeroStratumMethods.ReportHashrate:
-                    await OnSubmitHashrate(connection, tsRequest, ct);
+                    await OnSubmitHashrateAsync(connection, tsRequest, ct);
                     break;
 
                 case DeroStratumMethods.KeepAlive:
