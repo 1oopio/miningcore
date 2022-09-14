@@ -156,7 +156,11 @@ public abstract class StratumServer
             // init connection
             var connection = new StratumConnection(logger, rmsm, clock, CorrelationIdGenerator.GetNextId());
 
-            logger.Info(() => $"[{connection.ConnectionId}] Accepting connection from {remoteEndpoint.Address}:{remoteEndpoint.Port} ...");
+            var expectingProxyHeader = port.PoolEndpoint.TcpProxyProtocol?.Enable == true;
+            if (expectingProxyHeader)
+                logger.Debug(() => $"[{connection.ConnectionId}] Accepting connection from {remoteEndpoint.Address}:{remoteEndpoint.Port} ...");
+            else
+                logger.Info(() => $"[{connection.ConnectionId}] Accepting connection from {remoteEndpoint.Address}:{remoteEndpoint.Port} ...");
 
             RegisterConnection(connection);
             OnConnect(connection, port.IPEndPoint);
