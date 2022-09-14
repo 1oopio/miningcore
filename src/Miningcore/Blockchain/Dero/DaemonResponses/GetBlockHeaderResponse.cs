@@ -26,6 +26,9 @@ public class BlockHeader
 
     [JsonProperty("orphan_status")]
     public bool IsOrphaned { get; set; }
+
+    [JsonProperty("miners")]
+    public string[] Miners { get; set; }
 }
 
 public class GetBlockHeaderResponse

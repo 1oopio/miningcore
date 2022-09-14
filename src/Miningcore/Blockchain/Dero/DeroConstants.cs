@@ -37,6 +37,7 @@ public static class DeroCommands
     public const string GetHeight = "DERO.GetHeight";
     public const string GetBlockTemplate = "DERO.GetBlockTemplate";
     public const string SubmitBlock = "DERO.SubmitBlock";
+    public const string GetBlock = "DERO.GetBlock";
     public const string GetBlockHeaderByHash = "DERO.GetBlockHeaderByHash";
     public const string GetBlockHeaderByHeight = "DERO.GetBlockHeaderByTopoHeight";
     public const string GetEncryptedBalance = "DERO.GetEncryptedBalance";

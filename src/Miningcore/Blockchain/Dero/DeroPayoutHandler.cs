@@ -279,10 +279,10 @@ public class DeroPayoutHandler : PayoutHandlerBase,
             var blockHeight = heightBlocks.Key;
 
             var rpcResult = await rpcClient.ExecuteAsync<GetBlockHeaderResponse>(logger,
-                DeroCommands.GetBlockHeaderByHeight, ct,
-                new GetBlockHeaderByTopoHeightRequest
+                DeroCommands.GetBlock, ct,
+                new GetBlockRequest
                 {
-                    TopoHeight = blockHeight
+                    Height = blockHeight
                 });
 
             if(rpcResult.Error != null)
@@ -303,38 +303,24 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
             if ((blockHeader.Depth >= DeroConstants.PayoutMinBlockConfirmations) && !blockHeader.IsOrphaned)
             {
-                var request = new GetTransfersRequest
+                ulong miniblocks = 0;
+                foreach(var miner in blockHeader.Miners)
                 {
-                    MinHeight = blockHeight - 1,
-                    MaxHeight = blockHeight + 1,
-                    Coinbase = true,
-                };
-
-                var transfers = await rpcClientWallet.ExecuteAsync<GetTransfersResponse>(logger, DeroWalletCommands.GetTransfers, ct, request);
-
-                if(transfers.Error != null)
-                {
-                    logger.Debug(() => $"[{LogCategory}] Wallet Daemon reports error '{rpcResult.Error.Message}' (Code {rpcResult.Error.Code}) for block {blockHeight}");
-                    continue;
+                    if (miner == poolConfig.Address)
+                    {
+                        miniblocks++;
+                    }
                 }
 
-                if(transfers.Response?.Entries != null)
+                if (miniblocks > 0)
                 {
-                    var foundTransfer = transfers.Response.Entries.Where(x => x.TopoHeight == blockHeader.TopoHeight && x.Coinbase);
+                    var ourReward = (blockHeader.Reward / (ulong)blockHeader.Miners.Length) * miniblocks;
+                    blockConfirmedReward = (ourReward / coin.SmallestUnit) * coin.BlockrewardMultiplier;
 
-                    if(foundTransfer.Count() == 1)
-                    {
-                        blockConfirmedReward = (foundTransfer.First().Amount / coin.SmallestUnit) * coin.BlockrewardMultiplier;
+                    logger.Info(() => $"[{LogCategory}] Unlocked block {blockHeight} worth {FormatAmount(blockConfirmedReward)} needs to be split between {heightBlocks.Count()} mini blocks");
 
-                        logger.Info(() => $"[{LogCategory}] Unlocked block {blockHeight} worth {FormatAmount(blockConfirmedReward)} needs to be split between {heightBlocks.Count()} mini blocks");
-
-                        // Now we need to split the reward between all (mini)blocks
-                        blockConfirmedReward /= heightBlocks.Count();
-                    }
-                    else
-                    {
-                        logger.Warn(() => $"[{LogCategory}] Found {foundTransfer.Count()} matching transactions in wallet for block {blockHeight}, this should not be.");
-                    }
+                    // Now we need to split the reward between all (mini)blocks
+                    blockConfirmedReward /= heightBlocks.Count();
                 }
             }
 
