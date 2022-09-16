@@ -510,6 +510,12 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
                 if(!await PayoutBatch(page, ct))
                     break;
+
+                // wait 20sec unless we're on the last page to avoid multiple transactions in the same block
+                if(i < pageCount - 1)
+                {
+                    await Task.Delay(extraPoolPaymentProcessingConfig.PayoutDelay, ct);
+                }
             }
 
 
