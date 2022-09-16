@@ -523,5 +523,10 @@ public class DeroPayoutHandler : PayoutHandlerBase,
         }
     }
 
+    public double AdjustBlockEffort(double effort)
+    {
+        return effort;
+    }
+
     #endregion // IPayoutHandler
 }
