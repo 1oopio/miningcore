@@ -717,7 +717,8 @@ public partial class VarDiffConfig
 public enum BanManagerKind
 {
     Integrated = 1,
-    IpTables
+    IpTables,
+    Persistent
 }
 
 public class ClusterBanningConfig

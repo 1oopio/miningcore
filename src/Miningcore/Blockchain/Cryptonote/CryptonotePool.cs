@@ -5,6 +5,7 @@ using System.Reactive.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Microsoft.IO;
+using Miningcore.Banning;
 using Miningcore.Blockchain.Cryptonote.StratumRequests;
 using Miningcore.Blockchain.Cryptonote.StratumResponses;
 using Miningcore.Configuration;
@@ -143,7 +144,7 @@ public class CryptonotePool : PoolBase
             {
                 logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {context.Miner} for {loginFailureBanTimeout.TotalSeconds} sec");
 
-                banManager?.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
+                await banManager?.Ban(connection.RemoteEndpoint.Address, BanReason.Unauthorized, loginFailureBanTimeout);
 
                 Disconnect(connection);
             }
@@ -276,7 +277,7 @@ public class CryptonotePool : PoolBase
             logger.Info(() => $"[{connection.ConnectionId}] Share rejected: {ex.Message} [{context.UserAgent}]");
 
             // banning
-            ConsiderBan(connection, context, poolConfig.Banning);
+            await ConsiderBan(connection, context, poolConfig.Banning);
 
             throw;
         }

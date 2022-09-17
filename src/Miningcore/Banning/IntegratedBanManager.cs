@@ -13,13 +13,13 @@ public class IntegratedBanManager : IBanManager
 
     #region Implementation of IBanManager
 
-    public bool IsBanned(IPAddress address)
+    public async Task<bool> IsBanned(IPAddress address)
     {
-        var result = cache.Get(address.ToString());
+        var result = await Task<object>.Run(() => cache.Get(address.ToString()));
         return result != null;
     }
 
-    public void Ban(IPAddress address, TimeSpan duration)
+    public async Task Ban(IPAddress address, string reason, TimeSpan duration)
     {
         Contract.RequiresNonNull(address);
         Contract.Requires<ArgumentException>(duration.TotalMilliseconds > 0);
@@ -28,7 +28,12 @@ public class IntegratedBanManager : IBanManager
         if(address.Equals(IPAddress.Loopback) || address.Equals(IPAddress.IPv6Loopback))
             return;
 
-        cache.Set(address.ToString(), string.Empty, duration);
+        await Task.Run(() => cache.Set(address.ToString(), reason, duration));
+    }
+
+    public async Task Unban(IPAddress address)
+    {
+        await Task.Run(() => cache.Remove(address.ToString()));
     }
 
     #endregion

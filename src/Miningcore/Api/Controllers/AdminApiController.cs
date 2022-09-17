@@ -1,11 +1,13 @@
+using System.Collections.Concurrent;
+using System.Net;
 using Autofac;
 using Microsoft.AspNetCore.Mvc;
+using Miningcore.Banning;
+using Miningcore.Configuration;
 using Miningcore.Extensions;
 using Miningcore.Mining;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Util;
-using System.Collections.Concurrent;
-using System.Net;
 using NLog;
 
 namespace Miningcore.Api.Controllers;
@@ -21,11 +23,15 @@ public class AdminApiController : ApiControllerBase
         pools = ctx.Resolve<ConcurrentDictionary<string, IMiningPool>>();
         paymentsRepo = ctx.Resolve<IPaymentRepository>();
         balanceRepo = ctx.Resolve<IBalanceRepository>();
+
+        var managerType = clusterConfig.Banning?.Manager ?? BanManagerKind.Integrated;
+        banManager = ctx.ResolveKeyed<IBanManager>(managerType);
     }
 
     private readonly IPaymentRepository paymentsRepo;
     private readonly IBalanceRepository balanceRepo;
     private readonly IMinerRepository minerRepo;
+    private readonly IBanManager banManager;
     private readonly ConcurrentDictionary<string, IMiningPool> pools;
 
     private readonly Responses.AdminGcStats gcStats;
@@ -66,7 +72,7 @@ public class AdminApiController : ApiControllerBase
         if(string.IsNullOrEmpty(address))
             throw new ApiException("Invalid or missing miner address", HttpStatusCode.NotFound);
 
-        var result = await cf.Run(con=> minerRepo.GetSettingsAsync(con, null, pool.Id, address));
+        var result = await cf.Run(con => minerRepo.GetSettingsAsync(con, null, pool.Id, address));
 
         if(result == null)
             throw new ApiException("No settings found", HttpStatusCode.NotFound);
@@ -103,9 +109,40 @@ public class AdminApiController : ApiControllerBase
             return await minerRepo.GetSettingsAsync(con, tx, mapped.PoolId, mapped.Address);
         });
 
-        logger.Info(()=> $"Updated settings for pool {pool.Id}, miner {address}");
+        logger.Info(() => $"Updated settings for pool {pool.Id}, miner {address}");
 
         return mapper.Map<Responses.MinerSettings>(result);
+    }
+
+    [HttpGet("bans/{ipaddress}")]
+    public async Task<bool> GetBanStatusAsync(string ipaddress)
+    {
+        if(!IPAddress.TryParse(ipaddress, out var ip))
+            throw new ApiException("Invalid IP address", HttpStatusCode.BadRequest);
+
+        return await banManager.IsBanned(ip);
+    }
+
+    [HttpPost("bans/{ipaddress}")]
+    public async Task BanAsync(string ipaddress, [FromQuery] string reason, [FromQuery] int? duration)
+    {
+        if(!IPAddress.TryParse(ipaddress, out var ip))
+            throw new ApiException("Invalid IP address", HttpStatusCode.BadRequest);
+
+        await banManager.Ban(ip, reason, TimeSpan.FromSeconds(duration ?? 30));
+
+        logger.Info(() => $"Banned {ipaddress} for {duration ?? 30} seconds");
+    }
+
+    [HttpDelete("bans/{ipaddress}")]
+    public async Task UnbanAsync(string ipaddress)
+    {
+        if(!IPAddress.TryParse(ipaddress, out var ip))
+            throw new ApiException("Invalid IP address", HttpStatusCode.BadRequest);
+
+        await banManager.Unban(ip);
+
+        logger.Info(() => $"Unbanned {ipaddress}");
     }
 
     #endregion // Actions

@@ -5,6 +5,7 @@ using System.Reactive.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Microsoft.IO;
+using Miningcore.Banning;
 using Miningcore.Blockchain.Bitcoin;
 using Miningcore.Blockchain.Equihash.Configuration;
 using Miningcore.Configuration;
@@ -201,7 +202,7 @@ public class EquihashPool : PoolBase
                 // issue short-time ban if unauthorized to prevent DDos on daemon (validateaddress RPC)
                 logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {minerName} for {loginFailureBanTimeout.TotalSeconds} sec");
 
-                banManager?.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
+                await banManager?.Ban(connection.RemoteEndpoint.Address, BanReason.Unauthorized, loginFailureBanTimeout);
 
                 Disconnect(connection);
             }
@@ -270,7 +271,7 @@ public class EquihashPool : PoolBase
             logger.Info(() => $"[{connection.ConnectionId}] Share rejected: {ex.Message} [{context.UserAgent}]");
 
             // banning
-            ConsiderBan(connection, context, poolConfig.Banning);
+            await ConsiderBan(connection, context, poolConfig.Banning);
 
             throw;
         }

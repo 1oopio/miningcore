@@ -5,6 +5,7 @@ using System.Reactive.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Microsoft.IO;
+using Miningcore.Banning;
 using Miningcore.Blockchain.Ergo.Configuration;
 using Miningcore.Blockchain.Ergo.StratumResponses;
 using Miningcore.Configuration;
@@ -147,7 +148,7 @@ public class ErgoPool : PoolBase
                 // issue short-time ban if unauthorized to prevent DDos on daemon (validateaddress RPC)
                 logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {minerName} for {loginFailureBanTimeout.TotalSeconds} sec");
 
-                banManager?.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
+                await banManager?.Ban(connection.RemoteEndpoint.Address, BanReason.Unauthorized, loginFailureBanTimeout);
 
                 Disconnect(connection);
             }
@@ -216,7 +217,7 @@ public class ErgoPool : PoolBase
             logger.Info(() => $"[{connection.ConnectionId}] Share rejected: {ex.Message} [{context.UserAgent}]");
 
             // banning
-            ConsiderBan(connection, context, poolConfig.Banning);
+            await ConsiderBan(connection, context, poolConfig.Banning);
 
             throw;
         }

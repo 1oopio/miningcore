@@ -243,6 +243,8 @@ public abstract class PoolBase : StratumServer,
         {
             var managerType = clusterConfig.Banning?.Manager ?? BanManagerKind.Integrated;
             banManager = ctx.ResolveKeyed<IBanManager>(managerType);
+
+            logger.Info(() => $"Ban manager: {managerType}");
         }
     }
 
@@ -273,7 +275,7 @@ public abstract class PoolBase : StratumServer,
         }
     }
 
-    protected void ConsiderBan(StratumConnection connection, WorkerContextBase context, PoolShareBasedBanningConfig config)
+    protected async Task ConsiderBan(StratumConnection connection, WorkerContextBase context, PoolShareBasedBanningConfig config)
     {
         var totalShares = context.Stats.ValidShares + context.Stats.InvalidShares;
 
@@ -296,7 +298,7 @@ public abstract class PoolBase : StratumServer,
                 {
                     logger.Info(() => $"[{connection.ConnectionId}] Banning worker for {config.Time} sec: {Math.Floor(ratioBad * 100)}% of the last {totalShares} shares were invalid");
 
-                    banManager?.Ban(connection.RemoteEndpoint.Address, TimeSpan.FromSeconds(config.Time));
+                    await banManager?.Ban(connection.RemoteEndpoint.Address, BanReason.InvalidShares, TimeSpan.FromSeconds(config.Time));
 
                     Disconnect(connection);
                 }

@@ -66,6 +66,10 @@ public class AutofacModule : Module
             .Keyed<IBanManager>(BanManagerKind.Integrated)
             .SingleInstance();
 
+        builder.RegisterType<PersistentBanManager>()
+            .Keyed<IBanManager>(BanManagerKind.Persistent)
+            .SingleInstance();
+
         builder.RegisterAssemblyTypes(ThisAssembly)
             .Where(t => t.GetCustomAttributes<CoinFamilyAttribute>().Any() && t.GetInterfaces()
                 .Any(i =>

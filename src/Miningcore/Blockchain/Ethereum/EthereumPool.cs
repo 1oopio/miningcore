@@ -5,6 +5,7 @@ using System.Reactive.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Microsoft.IO;
+using Miningcore.Banning;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
 using Miningcore.JsonRpc;
@@ -158,7 +159,7 @@ public class EthereumPool : PoolBase
             {
                 logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {minerName} for {loginFailureBanTimeout.TotalSeconds} sec");
 
-                banManager?.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
+                await banManager?.Ban(connection.RemoteEndpoint.Address, BanReason.Unauthorized, loginFailureBanTimeout);
 
                 Disconnect(connection);
             }
@@ -310,7 +311,7 @@ public class EthereumPool : PoolBase
             logger.Info(() => $"[{connection.ConnectionId}] Share rejected: {ex.Message} [{context.UserAgent}]");
 
             // banning
-            ConsiderBan(connection, context, poolConfig.Banning);
+            await ConsiderBan(connection, context, poolConfig.Banning);
 
             throw;
         }
@@ -404,7 +405,7 @@ public class EthereumPool : PoolBase
         {
             if(clusterConfig?.Banning?.BanOnLoginFailure is null or true)
             {
-                banManager?.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
+                await banManager?.Ban(connection.RemoteEndpoint.Address, BanReason.Unauthorized, loginFailureBanTimeout);
 
                 logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {minerName} for {loginFailureBanTimeout.TotalSeconds} sec");
 
