@@ -23,7 +23,7 @@ public static class SerializationExtensions
         {
             object o = extra;
 
-            foreach (var key in wrappers)
+            foreach(var key in wrappers)
             {
                 if(o is IDictionary<string, object> dict)
                     o = dict[key];
