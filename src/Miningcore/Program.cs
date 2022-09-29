@@ -791,6 +791,9 @@ public class Program : BackgroundService
 
         // Configure RandomARQ
         RandomARQ.messageBus = messageBus;
+
+        // Configure AstroBWT
+        Miningcore.Native.Astrobwt.messageBus = messageBus;
     }
 
     private static async Task ConfigurePostgresCompatibilityOptions(IServiceProvider services)
