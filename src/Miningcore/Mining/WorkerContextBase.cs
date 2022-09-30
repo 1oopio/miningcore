@@ -73,6 +73,8 @@ public class WorkerContextBase
         pendingDifficulty = difficulty;
     }
 
+    public bool HasPendingDifficulty => pendingDifficulty.HasValue;
+
     public bool ApplyPendingDifficulty()
     {
         if(pendingDifficulty.HasValue)
