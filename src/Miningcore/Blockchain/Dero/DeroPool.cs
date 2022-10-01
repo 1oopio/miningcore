@@ -185,7 +185,7 @@ public class DeroPool : PoolBase
         var lastAge = clock.Now - context.Stats.LastReportedHashrate;
         context.Stats.ReportedHashrate = hashrateRequest.Hashrate;
 
-        if(lastAge > reportedHashrateInterval)
+        if(lastAge > TimeSpan.FromSeconds(clusterConfig.Statistics?.ReportedHashrateInterval ?? reportedHashrateInterval.Seconds))
         {
             context.Stats.LastReportedHashrate = clock.Now;
             ReportedHashrate reported = new ReportedHashrate
