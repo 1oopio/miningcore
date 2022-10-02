@@ -205,3 +205,19 @@ fabric.properties
 
 # End of https://www.toptal.com/developers/gitignore/api/rider
 .idea
+
+src/Native/libastrobwt/libastrobwt.h
+src/Native/libcryptonight/xmrig/3rdparty/argon2/arch/x86_64/lib/argon2-arch.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/arch/x86_64/lib/argon2-avx2.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/arch/x86_64/lib/argon2-avx512f.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/arch/x86_64/lib/argon2-sse2.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/arch/x86_64/lib/argon2-ssse3.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/arch/x86_64/lib/argon2-xop.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/lib/argon2.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/lib/blake2/blake2.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/lib/core.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/lib/encoding.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/lib/genkat.o
+src/Native/libcryptonight/xmrig/3rdparty/argon2/lib/impl-select.o
+src/Native/librandomarq/librandomx.a
+src/Native/librandomx/librandomx.a
