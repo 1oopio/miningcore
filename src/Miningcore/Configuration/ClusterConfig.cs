@@ -926,6 +926,11 @@ public class Statistics
     /// </summary>
     public int? CleanupDays { get; set; }
 
+    /// <summary>
+    /// Interval in seconds to persist reported hashrate to database
+    /// </summary>
+    public int? ReportedHashrateInterval { get; set; }
+
 }
 
 public class NicehashClusterConfig
