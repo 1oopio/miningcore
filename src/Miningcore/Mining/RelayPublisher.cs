@@ -177,6 +177,9 @@ public class RelayPublisher : IHostedService
 
             pubSocket.Connect(clusterConfig.ShareRelay.PublishUrl);
 
+            // sleep one second to avoid slow joiner syndrome
+            Thread.Sleep(1000);
+
             logger.Info(() => $"Connected to {clusterConfig.ShareRelay.PublishUrl}");
         }
 
