@@ -781,6 +781,9 @@
         "null"
       ],
       "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
         "cleanupDays": {
           "type": [
             "integer",

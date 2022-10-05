@@ -310,7 +310,7 @@ public class Program : BackgroundService
         else
             logger.Info("Payment processing is not enabled");
 
-        if(clusterConfig.ShareRelay == null)
+        if(clusterConfig.Statistics == null || clusterConfig.Statistics.Enabled)
         {
             // Pool stats
             services.AddHostedService<StatsRecorder>();
