@@ -1,1 +1,0 @@
-ALTER TABLE minerstats ADD COLUMN hashratetype VARCHAR;
