@@ -156,11 +156,15 @@ public abstract class StratumServer
             // init connection
             var connection = new StratumConnection(logger, rmsm, clock, CorrelationIdGenerator.GetNextId(), clusterConfig.Logging.GPDRCompliant);
 
+<<<<<<< HEAD
             var expectingProxyHeader = port.PoolEndpoint.TcpProxyProtocol?.Enable == true;
             if (expectingProxyHeader)
                 logger.Debug(() => $"[{connection.ConnectionId}] Accepting connection from {remoteEndpoint.Address.CensorOrReturn(clusterConfig.Logging.GPDRCompliant)}:{remoteEndpoint.Port} ...");
             else
                 logger.Info(() => $"[{connection.ConnectionId}] Accepting connection from {remoteEndpoint.Address.CensorOrReturn(clusterConfig.Logging.GPDRCompliant)}:{remoteEndpoint.Port} ...");
+=======
+            logger.Info(() => $"[{connection.ConnectionId}] Accepting connection from {remoteEndpoint.Address.CensorOrReturn(clusterConfig.Logging.GPDRCompliant)}:{remoteEndpoint.Port} ...");
+>>>>>>> d7ca2dcf3 (feat: improve gpdr compliance by censoring IPs in the logs)
 
             RegisterConnection(connection);
             OnConnect(connection, port.IPEndPoint);

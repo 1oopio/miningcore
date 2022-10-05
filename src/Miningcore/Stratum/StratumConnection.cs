@@ -115,6 +115,7 @@ public class StratumConnection
 
                     networkStream = sslStream;
 
+<<<<<<< HEAD
                     if(expectingProxyHeader)
                         logger.Debug(() => $"[{ConnectionId}] {sslStream.SslProtocol.ToString().ToUpper()}-{sslStream.CipherAlgorithm.ToString().ToUpper()} Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
                     else
@@ -124,6 +125,11 @@ public class StratumConnection
                     if(expectingProxyHeader)
                     logger.Debug(() => $"[{ConnectionId}] Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
                 else
+=======
+                    logger.Info(() => $"[{ConnectionId}] {sslStream.SslProtocol.ToString().ToUpper()}-{sslStream.CipherAlgorithm.ToString().ToUpper()} Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
+                }
+                else
+>>>>>>> d7ca2dcf3 (feat: improve gpdr compliance by censoring IPs in the logs)
                     logger.Info(() => $"[{ConnectionId}] Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
 
                 // Async I/O loop(s)
@@ -410,6 +416,7 @@ public class StratumConnection
 
                 // Update client
                 RemoteEndpoint = new IPEndPoint(IPAddress.Parse(remoteAddress), int.Parse(remotePort));
+<<<<<<< HEAD
 
                 // log the IP from the proxy only if debug is enabled
                 // otherwise the logs are flooded by the proxy's health-checks
@@ -417,6 +424,9 @@ public class StratumConnection
                     logger.Debug(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}");
                 else
                     logger.Info(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}");
+=======
+                logger.Info(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}");
+>>>>>>> d7ca2dcf3 (feat: improve gpdr compliance by censoring IPs in the logs)
             }
 
             else
