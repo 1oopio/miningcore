@@ -27,7 +27,7 @@ namespace Miningcore.Stratum;
 
 public class StratumConnection
 {
-    public StratumConnection(ILogger logger, RecyclableMemoryStreamManager rmsm, IMasterClock clock, string connectionId)
+    public StratumConnection(ILogger logger, RecyclableMemoryStreamManager rmsm, IMasterClock clock, string connectionId, bool gpdrCompliantLogging)
     {
         this.logger = logger;
         this.rmsm = rmsm;
@@ -42,6 +42,7 @@ public class StratumConnection
         this.clock = clock;
         ConnectionId = connectionId;
         IsAlive = true;
+        this.gpdrCompliantLogging = gpdrCompliantLogging;
     }
 
     private readonly ILogger logger;
@@ -56,6 +57,7 @@ public class StratumConnection
     private WorkerContextBase context;
     private readonly Subject<Unit> terminated = new();
     private bool expectingProxyHeader;
+    private bool gpdrCompliantLogging;
 
     private static readonly JsonSerializer serializer = new()
     {
@@ -114,16 +116,15 @@ public class StratumConnection
                     networkStream = sslStream;
                     
                     if (expectingProxyHeader)
-                        logger.Debug(() => $"[{ConnectionId}] {sslStream.SslProtocol.ToString().ToUpper()}-{sslStream.CipherAlgorithm.ToString().ToUpper()} Connection from {RemoteEndpoint.Address}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
+                        logger.Debug(() => $"[{ConnectionId}] {sslStream.SslProtocol.ToString().ToUpper()}-{sslStream.CipherAlgorithm.ToString().ToUpper()} Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
                     else
-                        logger.Info(() => $"[{ConnectionId}] {sslStream.SslProtocol.ToString().ToUpper()}-{sslStream.CipherAlgorithm.ToString().ToUpper()} Connection from {RemoteEndpoint.Address}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
+                        logger.Info(() => $"[{ConnectionId}] {sslStream.SslProtocol.ToString().ToUpper()}-{sslStream.CipherAlgorithm.ToString().ToUpper()} Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
                 }
-
                 else
                     if (expectingProxyHeader)
-                        logger.Debug(() => $"[{ConnectionId}] Connection from {RemoteEndpoint.Address}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
+                        logger.Debug(() => $"[{ConnectionId}] Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
                     else
-                        logger.Info(() => $"[{ConnectionId}] Connection from {RemoteEndpoint.Address}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
+                        logger.Info(() => $"[{ConnectionId}] Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
 
                 // Async I/O loop(s)
                 var tasks = new[]
@@ -413,14 +414,14 @@ public class StratumConnection
                 // log the IP from the proxy only if debug is enabled
                 // otherwise the logs are flooded by the proxy's health-checks
                 if (proxyAddresses.Any(x => x.IsEqual(RemoteEndpoint.Address)))
-                    logger.Debug(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address}");
+                    logger.Debug(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}");
                 else
-                    logger.Info(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address}");
+                    logger.Info(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}");
             }
 
             else
             {
-                throw new InvalidDataException($"Received spoofed Proxy-Protocol header from {peerAddress}");
+                throw new InvalidDataException($"Received spoofed Proxy-Protocol header from {peerAddress}"); // should we censor this IP too?
             }
 
             return true;
@@ -428,7 +429,7 @@ public class StratumConnection
 
         if(proxyProtocol.Mandatory)
         {
-            throw new InvalidDataException($"Missing mandatory Proxy-Protocol header from {peerAddress}. Closing connection.");
+            throw new InvalidDataException($"Missing mandatory Proxy-Protocol header from {peerAddress}. Closing connection."); // should we censor this IP too?
         }
 
         return false;
