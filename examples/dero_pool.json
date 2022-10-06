@@ -39,6 +39,13 @@
             "database": "miningcore"
         }
     },
+    "statistics": {
+      "enabled": true,
+      "updateInterval": 120,
+      "hashrateCalculationWindow": 10,
+      "gcInterval": 4,
+      "cleanupDays": 90
+    },
     "paymentProcessing": {
         "enabled": true,
         "interval": 100,

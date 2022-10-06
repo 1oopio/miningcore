@@ -908,6 +908,11 @@ public class ShareRelayConfig
 public class Statistics
 {
     /// <summary>
+    /// Enable statistics recording
+    /// </summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>
     /// Statistics update interval in seconds
     /// </summary>
     public int? UpdateInterval { get; set; }
