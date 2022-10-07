@@ -120,7 +120,7 @@ public abstract class PayoutHandlerBase
                 {
                     foreach(var balance in balances)
                     {
-                        if(!string.IsNullOrEmpty(transactionConfirmation) && poolConfig.RewardRecipients.All(x => x.Address != balance.Address))
+                        if(!string.IsNullOrEmpty(transactionConfirmation))
                         {
                             // record payment
                             var payment = new Payment
