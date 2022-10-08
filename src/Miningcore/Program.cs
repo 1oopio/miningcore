@@ -377,24 +377,29 @@ public class Program : BackgroundService
         var coinTemplates = LoadCoinTemplates();
         logger.Info($"{coinTemplates.Keys.Count} coins loaded from '{string.Join(", ", clusterConfig.CoinTemplates)}'");
 
-        await Guard(() => Task.WhenAll(clusterConfig.Pools
+        var tasks = clusterConfig.Pools
             .Where(config => config.Enabled)
-            .Select(config => RunPool(config, coinTemplates, ct))),
-            ex =>
+            .Select(config => RunPool(config, coinTemplates, ct));
+
+        await Guard(() => Task.WhenAll(tasks), ex =>
+        {
+            switch(ex)
             {
-                if(ex is PoolStartupException pse)
-                {
-                    var _logger = pse.PoolId != null ? LogUtil.GetPoolScopedLogger(GetType(), pse.PoolId) : logger;
-                    _logger.Error(() => $"{pse.Message}");
+                case PoolStartupException pse:
+                    {
+                        var _logger = pse.PoolId != null ? LogUtil.GetPoolScopedLogger(GetType(), pse.PoolId) : logger;
+                        _logger.Error(() => $"{pse.Message}");
 
-                    logger.Error(() => "Cluster cannot start. Good Bye!");
+                        logger.Error(() => "Cluster cannot start. Good Bye!");
 
-                    hal.StopApplication();
-                }
+                        hal.StopApplication();
+                        break;
+                    }
 
-                else
+                default:
                     throw ex;
-            });
+            }
+        });
     }
 
     private async Task RunPool(PoolConfig poolConfig, Dictionary<string, CoinTemplate> coinTemplates, CancellationToken ct)
