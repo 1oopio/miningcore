@@ -794,6 +794,9 @@ public class Program : BackgroundService
 
         // Configure AstroBWT
         Miningcore.Native.Astrobwt.messageBus = messageBus;
+
+        // Configure Blake2b
+        Blake2b.messageBus = messageBus;
     }
 
     private static async Task ConfigurePostgresCompatibilityOptions(IServiceProvider services)
