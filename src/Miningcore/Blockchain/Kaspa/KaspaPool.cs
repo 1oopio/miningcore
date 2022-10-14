@@ -1,4 +1,3 @@
-using Miningcore.Extensions;
 using System.Globalization;
 using System.Reactive;
 using System.Reactive.Linq;
@@ -7,15 +6,16 @@ using Autofac;
 using AutoMapper;
 using Microsoft.IO;
 using Miningcore.Configuration;
+using Miningcore.Extensions;
 using Miningcore.JsonRpc;
 using Miningcore.Messaging;
 using Miningcore.Mining;
 using Miningcore.Nicehash;
+using Miningcore.Notifications.Messages;
 using Miningcore.Persistence;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Stratum;
 using Miningcore.Time;
-using Miningcore.Notifications.Messages;
 using Newtonsoft.Json;
 using static Miningcore.Util.ActionUtils;
 namespace Miningcore.Blockchain.Kaspa;
@@ -122,7 +122,7 @@ public class KaspaPool : PoolBase
                 logger.Info(() => $"[{connection.ConnectionId}] Setting static difficulty of {staticDiff.Value}");
             }
 
-            if (context.EthereumStratumVariant)
+            if(context.EthereumStratumVariant)
             {
                 await connection.NotifyAsync(KaspaStratumMethods.SetExtranonceAlt, new object[] { context.ExtraNonce1, 6 });
             }
@@ -179,7 +179,7 @@ public class KaspaPool : PoolBase
         return result;
     }
 
-    
+
     private async Task OnSubmitHashrate(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
         var request = tsRequest.Value;
@@ -328,7 +328,7 @@ public class KaspaPool : PoolBase
             disposables.Add(manager.Blocks
                 .Select(_ => Observable.FromAsync(() =>
                     Guard(OnNewJobAsync,
-                        ex=> logger.Debug(() => $"{nameof(OnNewJobAsync)}: {ex.Message}"))))
+                        ex => logger.Debug(() => $"{nameof(OnNewJobAsync)}: {ex.Message}"))))
                 .Concat()
                 .Subscribe(_ => { }, ex =>
                 {
