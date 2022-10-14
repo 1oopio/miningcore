@@ -1,5 +1,10 @@
+using System.Collections;
 using Autofac;
 using AutoMapper;
+using Miningcore.Blockchain.Kaspa.Configuration;
+using Miningcore.Blockchain.Kaspa.RPC;
+using Miningcore.Blockchain.Kaspa.RPC.Messages;
+using Miningcore.Blockchain.Kaspa.RPC.Wallet;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
 using Miningcore.Messaging;
@@ -10,14 +15,9 @@ using Miningcore.Persistence.Model;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Time;
 using Miningcore.Util;
-using Miningcore.Blockchain.Kaspa.RPC.Wallet;
-using Miningcore.Blockchain.Kaspa.RPC.Messages;
-using Miningcore.Blockchain.Kaspa.RPC;
-using Miningcore.Blockchain.Kaspa.Configuration;
-using System.Collections;
+using static Miningcore.Util.ActionUtils;
 using Block = Miningcore.Persistence.Model.Block;
 using Contract = Miningcore.Contracts.Contract;
-using static Miningcore.Util.ActionUtils;
 
 namespace Miningcore.Blockchain.Kaspa;
 
@@ -230,19 +230,19 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         request.GetBlockRequest.IncludeTransactions = true;
         var response = await grpc.ExecuteAsync(logger, request, ct);
 
-        if (response == null || response.GetBlockResponse == null)
+        if(response == null || response.GetBlockResponse == null)
         {
             throw new Exception($"No result from node for get block: {hash}");
         }
 
-        if (response.GetBlockResponse.Error != null && response.GetBlockResponse.Error.Message != null)
+        if(response.GetBlockResponse.Error != null && response.GetBlockResponse.Error.Message != null)
         {
             throw new Exception($"Got error from node: {response.GetBlockResponse.Error.Message}");
         }
 
         return response;
     }
-    
+
     private async Task<KaspadMessage> GetBlocksAsync(NLog.ILogger logger, string hash, CancellationToken ct)
     {
         var request = new KaspadMessage();
@@ -252,12 +252,12 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         request.GetBlocksRequest.IncludeTransactions = false;
         var response = await grpc.ExecuteAsync(logger, request, ct);
 
-        if (response == null || response.GetBlocksResponse == null)
+        if(response == null || response.GetBlocksResponse == null)
         {
             throw new Exception($"No result from node for get blocks: {hash}");
         }
 
-        if (response.GetBlocksResponse.Error != null && response.GetBlocksResponse.Error.Message != null)
+        if(response.GetBlocksResponse.Error != null && response.GetBlocksResponse.Error.Message != null)
         {
             throw new Exception($"Got error from node: {response.GetBlocksResponse.Error.Message}");
         }
@@ -417,7 +417,7 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
                     block.Status = BlockStatus.Orphaned;
 
                     // We only mark the block as confirmed, if the block has an reward
-                    if (block.Reward > 0)
+                    if(block.Reward > 0)
                     {
                         block.Status = BlockStatus.Confirmed;
                         block.ConfirmationProgress = 1;
@@ -456,7 +456,7 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         var balancesTotal = amounts.Sum(x => x.Value);
         var walletTotalResponse = await grpcWallet.GetBalanceAsync(logger, ct);
         var balanceAvailable = (walletTotalResponse?.Available ?? 0) / KaspaConstants.SmallestUnit;
-        if (walletTotalResponse == null || balanceAvailable < balancesTotal)
+        if(walletTotalResponse == null || balanceAvailable < balancesTotal)
         {
             NotifyPayoutFailure(poolConfig.Id, balances, $"Error with wallet balance {balanceAvailable} vs requested {balancesTotal}", null);
             return;
@@ -469,7 +469,7 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
             var balanceAsArray = new List<Balance> { balance }.ToArray();
             var req = new SendRequest();
             req.ToAddress = balance.Address;
-            req.Amount = (ulong)(balance.Amount * KaspaConstants.SmallestUnit);
+            req.Amount = (ulong) (balance.Amount * KaspaConstants.SmallestUnit);
             req.Password = extraPoolPaymentProcessingConfig.WalletPassword ?? String.Empty;
 
             try
@@ -494,6 +494,11 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
                 NotifyPayoutFailure(poolConfig.Id, balanceAsArray, $"Error sending {balance.Amount} to {balance.Address}", ex);
             }
         }
+    }
+
+    public double AdjustBlockEffort(double effort)
+    {
+        return effort;
     }
 
     #endregion // IPayoutHandler
