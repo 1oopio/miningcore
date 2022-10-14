@@ -1,14 +1,14 @@
-using Miningcore.Extensions;
-using System.Text;
-using Miningcore.Crypto.Hashing.Algorithms;
-using Contract = Miningcore.Contracts.Contract;
-using Miningcore.Blockchain.Kaspa.RPC.Messages;
-using Miningcore.Stratum;
 using System.Collections.Concurrent;
-using BigInteger = System.Numerics.BigInteger;
-using NBitcoin;
+using System.Text;
+using Miningcore.Blockchain.Kaspa.RPC.Messages;
+using Miningcore.Crypto.Hashing.Algorithms;
+using Miningcore.Extensions;
+using Miningcore.Stratum;
 using Miningcore.Util;
+using NBitcoin;
 using Org.BouncyCastle.Crypto.Digests;
+using BigInteger = System.Numerics.BigInteger;
+using Contract = Miningcore.Contracts.Contract;
 
 namespace Miningcore.Blockchain.Kaspa;
 
@@ -28,7 +28,7 @@ public class KaspaJob
     private static readonly Blake2b hasher = new Blake2b();
     private static readonly HeavyHashKaspa heavyHasher = new HeavyHashKaspa();
 
-    protected bool RegisterSubmit( string nonce)
+    protected bool RegisterSubmit(string nonce)
     {
         var key = new StringBuilder()
               .Append(nonce)
@@ -92,7 +92,7 @@ public class KaspaJob
 
         hasher.Update(blakeState, BitConverter.GetBytes((UInt64) parsedBlueWork.Count()));
         hasher.Update(blakeState, parsedBlueWork);
-                
+
         hasher.Update(blakeState, block.Header.PruningPoint.HexToByteArray());
 
         Span<byte> hash = stackalloc byte[32];
@@ -145,11 +145,12 @@ public class KaspaJob
         var mant = bits & 0xFFFFFF;
         Int32 expt = (Int32) (bits >> 24);
 
-        if (expt <= new BigInteger(3))
+        if(expt <= new BigInteger(3))
         {
             mant = mant >> (8 * (3 - expt));
             expt = 0;
-        } else
+        }
+        else
         {
             expt = (Int32) (8 * ((bits >> 24) - 3));
         }
@@ -229,5 +230,5 @@ public class KaspaJob
 
     }
 
-        #endregion // API-Surface
-    }
+    #endregion // API-Surface
+}
