@@ -71,7 +71,7 @@ public class StratumConnectionTests : TestBase
             return Task.CompletedTask;
         }
 
-        await Assert.ThrowsAnyAsync<JsonException>(()=> (Task) wrapper.Invoke(ProcessRequestAsyncMethod,
+        await Assert.ThrowsAnyAsync<JsonException>(() => (Task) wrapper.Invoke(ProcessRequestAsyncMethod,
             CancellationToken.None,
             handler,
             new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes(invalidRequestString))));
@@ -95,7 +95,7 @@ public class StratumConnectionTests : TestBase
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
 
-        await Assert.ThrowsAnyAsync<TaskCanceledException>(()=> (Task) wrapper.Invoke(ProcessRequestAsyncMethod,
+        await Assert.ThrowsAnyAsync<TaskCanceledException>(() => (Task) wrapper.Invoke(ProcessRequestAsyncMethod,
             cts.Token,
             handler,
             new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes(requestString))));

@@ -4,6 +4,7 @@ using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Text;
+using Autofac;
 using AutoMapper;
 using Microsoft.Extensions.Hosting;
 using Miningcore.Configuration;
@@ -13,13 +14,14 @@ using Miningcore.Notifications.Messages;
 using Miningcore.Persistence;
 using Miningcore.Persistence.Model;
 using Miningcore.Persistence.Repositories;
+using Miningcore.PriceService;
 using Newtonsoft.Json;
 using NLog;
 using Polly;
 using Polly.CircuitBreaker;
+using static Miningcore.Util.ActionUtils;
 using Contract = Miningcore.Contracts.Contract;
 using Share = Miningcore.Blockchain.Share;
-using static Miningcore.Util.ActionUtils;
 
 namespace Miningcore.Mining;
 
@@ -28,7 +30,8 @@ namespace Miningcore.Mining;
 /// </summary>
 public class ShareRecorder : BackgroundService
 {
-    public ShareRecorder(IConnectionFactory cf,
+    public ShareRecorder(IComponentContext ctx,
+        IConnectionFactory cf,
         IMapper mapper,
         JsonSerializerSettings jsonSerializerSettings,
         IShareRepository shareRepo,
@@ -43,6 +46,7 @@ public class ShareRecorder : BackgroundService
         Contract.RequiresNonNull(jsonSerializerSettings);
         Contract.RequiresNonNull(messageBus);
 
+        this.ctx = ctx;
         this.cf = cf;
         this.mapper = mapper;
         this.jsonSerializerSettings = jsonSerializerSettings;
@@ -56,17 +60,20 @@ public class ShareRecorder : BackgroundService
 
         BuildFaultHandlingPolicy();
         ConfigureRecovery();
+        SetupPriceService();
     }
 
     private static readonly ILogger logger = LogManager.GetCurrentClassLogger();
     private readonly IShareRepository shareRepo;
     private readonly IBlockRepository blockRepo;
+    private readonly IComponentContext ctx;
     private readonly IConnectionFactory cf;
     private readonly JsonSerializerSettings jsonSerializerSettings;
     private readonly IMessageBus messageBus;
     private readonly ClusterConfig clusterConfig;
     private readonly Dictionary<string, PoolConfig> pools;
     private readonly IMapper mapper;
+    private IPriceService priceService;
 
     private IAsyncPolicy faultPolicy;
     private bool hasLoggedPolicyFallbackFailure;
@@ -74,6 +81,15 @@ public class ShareRecorder : BackgroundService
     private const int RetryCount = 3;
     private const string PolicyContextKeyShares = "share";
     private bool notifiedAdminOnPolicyFallback = false;
+
+    protected void SetupPriceService()
+    {
+        if(clusterConfig.PriceService?.Enabled == true)
+        {
+            var serviceType = clusterConfig.PriceService?.Service ?? PriceServiceKind.CoinGecko;
+            priceService = ctx.ResolveKeyed<IPriceService>(serviceType);
+        }
+    }
 
     private async Task PersistSharesAsync(IList<Share> shares)
     {
@@ -98,12 +114,32 @@ public class ShareRecorder : BackgroundService
 
                 var blockEntity = mapper.Map<Block>(share);
                 blockEntity.Status = BlockStatus.Pending;
+
+                if(clusterConfig.PriceService?.Enabled == true)
+                {
+                    if(pools.TryGetValue(share.PoolId, out var pool))
+                    {
+                        try
+                        {
+                            var price = await priceService.GetPrice(pool.Coin);
+
+                            if(price.HasValue)
+                                blockEntity.Price = price.Value;
+                        }
+
+                        catch(Exception ex)
+                        {
+                            logger.Error(() => $"Failed to get price for {pool.Coin}: {ex}");
+                        }
+                    }
+                }
+
                 await blockRepo.InsertAsync(con, tx, blockEntity);
 
                 if(pools.TryGetValue(share.PoolId, out var poolConfig))
                     messageBus.NotifyBlockFound(share.PoolId, blockEntity, poolConfig.Template);
                 else
-                    logger.Warn(()=> $"Block found for unknown pool {share.PoolId}");
+                    logger.Warn(() => $"Block found for unknown pool {share.PoolId}");
             }
         });
     }
