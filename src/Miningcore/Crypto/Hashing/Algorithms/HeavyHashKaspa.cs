@@ -13,9 +13,9 @@ public unsafe class HeavyHashKaspa : IHashAlgorithm
 
         byte[] seedData = (byte[]) extra[0];
 
-        fixed (byte* input = data)
+        fixed(byte* input = data)
         {
-            fixed (byte* output = result)
+            fixed(byte* output = result)
             {
                 fixed(byte* seed = seedData)
                 {
