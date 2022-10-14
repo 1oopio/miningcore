@@ -1,6 +1,9 @@
 using System.Reactive;
 using System.Reactive.Linq;
 using Autofac;
+using Miningcore.Blockchain.Kaspa.Configuration;
+using Miningcore.Blockchain.Kaspa.RPC;
+using Miningcore.Blockchain.Kaspa.RPC.Messages;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
 using Miningcore.Messaging;
@@ -10,12 +13,9 @@ using Miningcore.Stratum;
 using Miningcore.Time;
 using Miningcore.Util;
 using NLog;
-using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
-using Miningcore.Blockchain.Kaspa.RPC.Messages;
-using Miningcore.Blockchain.Kaspa.RPC;
 using BigInteger = System.Numerics.BigInteger;
-using Miningcore.Blockchain.Kaspa.Configuration;
+using Contract = Miningcore.Contracts.Contract;
 
 namespace Miningcore.Blockchain.Kaspa;
 
@@ -65,14 +65,14 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
             var blockTemplate = response.GetBlockTemplateResponse;
 
-            if (!blockTemplate.IsSynced)
+            if(!blockTemplate.IsSynced)
             {
                 logger.Warn(() => $"Unable to update job. Daemon is not synced");
                 return false;
             }
 
             var block = blockTemplate.Block;
-            
+
             var job = currentJob;
 
             var newHash = KaspaJob.HashBlock(block, true).ToHexString();
@@ -153,7 +153,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
                 requestHashrate.EstimateNetworkHashesPerSecondRequest.WindowSize = 1000;
                 requestHashrate.EstimateNetworkHashesPerSecondRequest.StartHash = responseInfo.GetBlockDagInfoResponse.TipHashes.First();
                 var responseHashrate = await grpc.ExecuteAsync(logger, requestHashrate, ct);
-                if (responseHashrate != null && responseHashrate.EstimateNetworkHashesPerSecondResponse != null && responseHashrate.EstimateNetworkHashesPerSecondResponse.Error == null)
+                if(responseHashrate != null && responseHashrate.EstimateNetworkHashesPerSecondResponse != null && responseHashrate.EstimateNetworkHashesPerSecondResponse.Error == null)
                 {
                     BlockchainStats.NetworkHashrate = responseHashrate.EstimateNetworkHashesPerSecondResponse.NetworkHashesPerSecond;
                 }
@@ -183,7 +183,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         request.SubmitBlockRequest.AllowNonDAABlocks = false;
         var response = await grpc.ExecuteAsync(logger, request, CancellationToken.None);
 
-        if (response == null || response.SubmitBlockResponse == null || response.SubmitBlockResponse.Error != null)
+        if(response == null || response.SubmitBlockResponse == null || response.SubmitBlockResponse.Error != null)
         {
             var error = response?.SubmitBlockResponse?.Error?.Message ?? "Unknown";
             logger.Warn(() => $"Block {share.BlockHeight} [{share.BlockHash[..6]}] submission failed with: {error}");
@@ -259,7 +259,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
     public BlockchainStats BlockchainStats { get; } = new();
 
-    public void PrepareWorkerJob(KaspaWorkerJob workerJob, out string hash, out BigInteger[] jobs , out long timestamp)
+    public void PrepareWorkerJob(KaspaWorkerJob workerJob, out string hash, out BigInteger[] jobs, out long timestamp)
     {
         hash = null;
         jobs = null;
@@ -425,11 +425,11 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
             var addressResponse = await grpcWallet.ShowAddressesAsync(logger, ct);
             var found = false;
 
-            if (addressResponse != null)
+            if(addressResponse != null)
             {
                 foreach(var address in addressResponse.Address)
                 {
-                    if (address == poolConfig.Address)
+                    if(address == poolConfig.Address)
                     {
                         found = true;
                         break;
@@ -441,7 +441,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
                 throw new PoolStartupException($"Init gRPC for Wallet-Daemon failed", poolConfig.Id);
             }
 
-            if (!found)
+            if(!found)
             {
                 throw new PoolStartupException($"Wallet-Daemon does not own pool-address '{poolConfig.Address}'", poolConfig.Id);
             }
@@ -494,8 +494,8 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         // Periodically update network stats
         Observable.Interval(TimeSpan.FromMinutes(1))
             .Select(via => Observable.FromAsync(() =>
-                Guard(()=> UpdateNetworkStatsAsync(ct),
-                    ex=> logger.Error(ex))))
+                Guard(() => UpdateNetworkStatsAsync(ct),
+                    ex => logger.Error(ex))))
             .Concat()
             .Subscribe();
 

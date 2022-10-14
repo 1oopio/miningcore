@@ -4,7 +4,7 @@ namespace Miningcore.Blockchain.Kaspa;
 
 public class KaspaWorkerJob
 {
-    public KaspaWorkerJob( double difficulty)
+    public KaspaWorkerJob(double difficulty)
     {
         Difficulty = difficulty;
     }
