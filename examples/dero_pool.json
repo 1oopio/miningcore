@@ -1,135 +1,138 @@
 {
-    "$schema": "https://raw.githubusercontent.com/oliverw/miningcore/master/src/Miningcore/config.schema.json",
-    "logging": {
-        "level": "info",
-        "enableConsoleLog": true,
-        "enableConsoleColors": true,
-        "logFile": "",
-        "apiLogFile": "",
-        "logBaseDirectory": "",
-        "perPoolLogFile": false
+  "$schema": "https://raw.githubusercontent.com/oliverw/miningcore/master/src/Miningcore/config.schema.json",
+  "logging": {
+    "level": "info",
+    "enableConsoleLog": true,
+    "enableConsoleColors": true,
+    "logFile": "",
+    "apiLogFile": "",
+    "logBaseDirectory": "",
+    "perPoolLogFile": false
+  },
+  "banning": {
+    "manager": "Integrated",
+    "banOnJunkReceive": false,
+    "banOnInvalidShares": false
+  },
+  "notifications": {
+    "enabled": false,
+    "email": {
+      "host": "smtp.example.com",
+      "port": 587,
+      "user": "user",
+      "password": "password",
+      "fromAddress": "info@yourpool.org",
+      "fromName": "pool support"
     },
-    "banning": {
-        "manager": "Integrated",
-        "banOnJunkReceive": false,
-        "banOnInvalidShares": false
-    },
-    "notifications": {
-        "enabled": false,
-        "email": {
-            "host": "smtp.example.com",
-            "port": 587,
-            "user": "user",
-            "password": "password",
-            "fromAddress": "info@yourpool.org",
-            "fromName": "pool support"
-        },
-        "admin": {
-            "enabled": false,
-            "emailAddress": "user@example.com",
-            "notifyBlockFound": true
-        }
-    },
-    "persistence": {
-        "postgres": {
-            "host": "127.0.0.1",
-            "port": 5432,
-            "user": "miningcore",
-            "password": "password",
-            "database": "miningcore"
-        }
-    },
-    "statistics": {
-      "enabled": true,
-      "updateInterval": 120,
-      "hashrateCalculationWindow": 10,
-      "gcInterval": 4,
-      "cleanupDays": 90
-    },
-    "paymentProcessing": {
-        "enabled": true,
-        "interval": 100,
-        "shareRecoveryFile": "recovered-shares.txt"
-    },
-    "api": {
-        "enabled": true,
-        "listenAddress": "*",
-        "port": 4000,
-        "metricsIpWhitelist": [],
-        "rateLimiting": {
-            "disabled": true,
-            "rules": [
-                {
-                    "Endpoint": "*",
-                    "Period": "1s",
-                    "Limit": 5
-                }
-            ],
-            "ipWhitelist": [
-                ""
-            ]
-        }
-    },
-    "clusterName": "eu1",
-    "pools": [
+    "admin": {
+      "enabled": false,
+      "emailAddress": "user@example.com",
+      "notifyBlockFound": true
+    }
+  },
+  "persistence": {
+    "postgres": {
+      "host": "127.0.0.1",
+      "port": 5432,
+      "user": "miningcore",
+      "password": "password",
+      "database": "miningcore"
+    }
+  },
+  "statistics": {
+    "enabled": true,
+    "updateInterval": 120,
+    "hashrateCalculationWindow": 10,
+    "gcInterval": 4,
+    "cleanupDays": 90
+  },
+  "paymentProcessing": {
+    "enabled": true,
+    "interval": 100,
+    "shareRecoveryFile": "recovered-shares.txt"
+  },
+  "priceService": {
+    "enabled": true,
+    "service": "CoinGecko",
+    "vsCurrency": "usd"
+  },
+  "api": {
+    "enabled": true,
+    "listenAddress": "*",
+    "port": 4000,
+    "metricsIpWhitelist": [],
+    "rateLimiting": {
+      "disabled": true,
+      "rules": [
         {
-            "id": "dero1",
-            "enabled": true,
-            "coin": "dero",
-            "address": "deto1qy0ehnqjpr0wxqnknyc66du2fsxyktppkr8m8e6jvplp954klfjz2qqdzcd8p",
-            "rewardRecipients": [
-                {
-                    "type": "op",
-                    "address": "deto1qy0ehnqjpr0wxqnknyc66du2fsxyktppkr8m8e6jvplp954klfjz2qqdzcd8p",
-                    "percentage": 1.0
-                }
-            ],
-            "blockRefreshInterval": 400,
-            "clientConnectionTimeout": 600,
-            "banning": {
-                "enabled": true,
-                "time": 600,
-                "invalidPercent": 50,
-                "checkThreshold": 50
-            },
-            "ports": {
-                "4090": {
-                    "name": "Pool",
-                    "listenAddress": "*",
-                    "difficulty": 250000,
-                    "tls": false,
-                    "tlsAuto": false
-                }
-            },
-            "chainTypeOverride": "Dero",
-            "daemons": [
-                {
-                  "host": "127.0.0.1",
-                  "port": 40402,
-                  "user": "",
-                  "password": ""
-                },
-                {
-                  "host": "127.0.0.1",
-                  "port": 40403,
-                  "user": "",
-                  "password": "",
-                  "category": "wallet"
-                }
-            ],
-            "paymentProcessing": {
-                "enabled": true,
-                "minimumPayment": 1,
-                "payoutScheme": "PPLNS",
-                "payoutSchemeConfig": {
-                    "factor": 0.5
-                },
-                "gas": 21000,
-                "maxFeePerGas": 50000000000,
-                "keepUncles": false,
-                "keepTransactionFees": false,
-                "payoutBatchSize": 15
-            }
+          "Endpoint": "*",
+          "Period": "1s",
+          "Limit": 5
         }
-    ]
+      ],
+      "ipWhitelist": [""]
+    }
+  },
+  "clusterName": "eu1",
+  "pools": [
+    {
+      "id": "dero1",
+      "enabled": true,
+      "coin": "dero",
+      "address": "deto1qy0ehnqjpr0wxqnknyc66du2fsxyktppkr8m8e6jvplp954klfjz2qqdzcd8p",
+      "rewardRecipients": [
+        {
+          "type": "op",
+          "address": "deto1qy0ehnqjpr0wxqnknyc66du2fsxyktppkr8m8e6jvplp954klfjz2qqdzcd8p",
+          "percentage": 1.0
+        }
+      ],
+      "blockRefreshInterval": 400,
+      "clientConnectionTimeout": 600,
+      "banning": {
+        "enabled": true,
+        "time": 600,
+        "invalidPercent": 50,
+        "checkThreshold": 50
+      },
+      "ports": {
+        "4090": {
+          "name": "Pool",
+          "listenAddress": "*",
+          "difficulty": 250000,
+          "tls": false,
+          "tlsAuto": false
+        }
+      },
+      "chainTypeOverride": "Dero",
+      "daemons": [
+        {
+          "host": "127.0.0.1",
+          "port": 40402,
+          "user": "",
+          "password": ""
+        },
+        {
+          "host": "127.0.0.1",
+          "port": 40403,
+          "user": "",
+          "password": "",
+          "category": "wallet"
+        }
+      ],
+      "paymentProcessing": {
+        "enabled": true,
+        "minimumPayment": 1,
+        "payoutScheme": "PPLNS",
+        "payoutSchemeConfig": {
+          "factor": 0.5
+        },
+        "gas": 21000,
+        "maxFeePerGas": 50000000000,
+        "keepUncles": false,
+        "keepTransactionFees": false,
+        "payoutBatchSize": 15
+      }
+    }
+  ]
 }

@@ -778,7 +778,7 @@ public partial class ClusterPaymentProcessingConfig
     /// <summary>
     /// Indentifier used in coinbase transactions to identify the pool
     /// </summary>
-    public string CoinbaseString  { get; set; }
+    public string CoinbaseString { get; set; }
 }
 
 public partial class PersistenceConfig
@@ -825,6 +825,33 @@ public partial class NotificationsConfig
     public EmailSenderConfig Email { get; set; }
     public PushoverConfig Pushover { get; set; }
     public AdminNotifications Admin { get; set; }
+}
+
+public enum PriceServiceKind
+{
+    CoinGecko = 1,
+}
+
+
+public partial class PriceServiceConfig
+{
+    public PriceServiceKind Service { get; set; }
+
+    /// <summary>
+    /// Enable price service
+    /// </summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>
+    /// Currency to convert to
+    /// </summary>
+    public string VSCurrency { get; set; }
+
+
+    /// <summary>
+    /// ApiKey for the price service
+    /// </summary>
+    public string ApiKey { get; set; }
 }
 
 public class ApiRateLimitConfig
@@ -1036,6 +1063,7 @@ public partial class ClusterConfig
     public PersistenceConfig Persistence { get; set; }
     public ClusterPaymentProcessingConfig PaymentProcessing { get; set; }
     public NotificationsConfig Notifications { get; set; }
+    public PriceServiceConfig PriceService { get; set; }
     public ApiConfig Api { get; set; }
     public Statistics Statistics { get; set; }
     public NicehashClusterConfig Nicehash { get; set; }

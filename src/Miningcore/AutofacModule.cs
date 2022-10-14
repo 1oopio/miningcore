@@ -1,5 +1,7 @@
 using System.Reflection;
 using Autofac;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.IO;
 using Miningcore.Api;
 using Miningcore.Banning;
 using Miningcore.Blockchain.Bitcoin;
@@ -14,17 +16,16 @@ using Miningcore.Crypto;
 using Miningcore.Crypto.Hashing.Equihash;
 using Miningcore.Messaging;
 using Miningcore.Mining;
+using Miningcore.Nicehash;
 using Miningcore.Notifications;
 using Miningcore.Payments;
 using Miningcore.Payments.PaymentSchemes;
+using Miningcore.PriceService;
+using Miningcore.Pushover;
 using Miningcore.Time;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Module = Autofac.Module;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.IO;
-using Miningcore.Nicehash;
-using Miningcore.Pushover;
 
 namespace Miningcore;
 
@@ -79,7 +80,7 @@ public class AutofacModule : Module
         builder.RegisterAssemblyTypes(ThisAssembly)
             .Where(t => t.GetCustomAttributes<IdentifierAttribute>().Any() &&
                 t.GetInterfaces().Any(i => i.IsAssignableFrom(typeof(IHashAlgorithm))))
-            .Named<IHashAlgorithm>(t=> t.GetCustomAttributes<IdentifierAttribute>().First().Name)
+            .Named<IHashAlgorithm>(t => t.GetCustomAttributes<IdentifierAttribute>().First().Name)
             .PropertiesAutowired();
 
         builder.RegisterAssemblyTypes(ThisAssembly)
@@ -179,6 +180,13 @@ public class AutofacModule : Module
         // Kaspa
 
         builder.RegisterType<KaspaJobManager>();
+
+        //////////////////////
+        // Price Service
+
+        builder.RegisterType<CoinGeckoClient>()
+            .Keyed<IPriceService>(PriceServiceKind.CoinGecko)
+            .SingleInstance();
 
         base.Load(builder);
     }

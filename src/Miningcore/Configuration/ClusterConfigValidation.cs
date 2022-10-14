@@ -1,5 +1,5 @@
-using FluentValidation;
 using System.Security.Cryptography.X509Certificates;
+using FluentValidation;
 
 namespace Miningcore.Configuration;
 
@@ -207,7 +207,7 @@ public class ClusterConfigValidator : AbstractValidator<ClusterConfig>
         RuleFor(j => j.InstanceId)
             .GreaterThan((byte) 0)
             .When(x => x.InstanceId.HasValue)
-            .WithMessage("instanceId must either be omitted or be non-zero");;
+            .WithMessage("instanceId must either be omitted or be non-zero"); ;
 
         // ensure pool ids are unique
         RuleFor(j => j.Pools)
@@ -296,6 +296,10 @@ public partial class AdminNotifications
 }
 
 public partial class NotificationsConfig
+{
+}
+
+public partial class PriceServiceConfig
 {
 }
 
