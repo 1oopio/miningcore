@@ -458,7 +458,9 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         var balanceAvailable = (walletTotalResponse?.Available ?? 0) / KaspaConstants.SmallestUnit;
         if(walletTotalResponse == null || balanceAvailable < balancesTotal)
         {
-            NotifyPayoutFailure(poolConfig.Id, balances, $"Error with wallet balance {balanceAvailable} vs requested {balancesTotal}", null);
+            logger.Error(() => $"[{LogCategory}] Error with wallet balance {FormatAmount(balanceAvailable)} vs requested {FormatAmount(balancesTotal)}");
+
+            NotifyPayoutFailure(poolConfig.Id, balances, $"Error with wallet balance {FormatAmount(balanceAvailable)} vs requested {FormatAmount(balancesTotal)}", null);
             return;
         }
 
@@ -477,6 +479,8 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
                 var sendResponse = await grpcWallet.SendAsync(logger, req, ct, true);
                 if(sendResponse == null)
                 {
+                    logger.Error(() => $"[{LogCategory}] Error sending payment to {balance.Address} for {FormatAmount(balance.Amount)}");
+
                     NotifyPayoutFailure(poolConfig.Id, balanceAsArray, $"Error sending {balance.Amount} to {balance.Address}", null);
                 }
                 else
@@ -491,7 +495,9 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
             }
             catch(Exception ex)
             {
-                NotifyPayoutFailure(poolConfig.Id, balanceAsArray, $"Error sending {balance.Amount} to {balance.Address}", ex);
+                logger.Error(() => $"[{LogCategory}] Error sending payment to {balance.Address} for {FormatAmount(balance.Amount)}, {ex.Message}");
+
+                NotifyPayoutFailure(poolConfig.Id, balanceAsArray, $"Error sending {FormatAmount(balance.Amount)} to {balance.Address}", ex);
             }
         }
     }
