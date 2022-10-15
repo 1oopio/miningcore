@@ -143,7 +143,7 @@ public class CryptonotePool : PoolBase
             {
                 logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {context.Miner} for {loginFailureBanTimeout.TotalSeconds} sec");
 
-                banManager.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
+                banManager?.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
 
                 Disconnect(connection);
             }
@@ -315,7 +315,7 @@ public class CryptonotePool : PoolBase
             disposables.Add(manager.Blocks
                 .Select(_ => Observable.FromAsync(() =>
                     Guard(OnNewJobAsync,
-                        ex=> logger.Debug(() => $"{nameof(OnNewJobAsync)}: {ex.Message}"))))
+                        ex => logger.Debug(() => $"{nameof(OnNewJobAsync)}: {ex.Message}"))))
                 .Concat()
                 .Subscribe(_ => { }, ex =>
                 {

@@ -1,7 +1,7 @@
+using System.Numerics;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
-using System.Numerics;
 using Autofac;
 using AutoMapper;
 using Microsoft.IO;
@@ -147,7 +147,7 @@ public class ErgoPool : PoolBase
                 // issue short-time ban if unauthorized to prevent DDos on daemon (validateaddress RPC)
                 logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {minerName} for {loginFailureBanTimeout.TotalSeconds} sec");
 
-                banManager.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
+                banManager?.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
 
                 Disconnect(connection);
             }
@@ -295,8 +295,8 @@ public class ErgoPool : PoolBase
         {
             disposables.Add(manager.Jobs
                 .Select(job => Observable.FromAsync(() =>
-                    Guard(()=> OnNewJobAsync(job),
-                        ex=> logger.Debug(() => $"{nameof(OnNewJobAsync)}: {ex.Message}"))))
+                    Guard(() => OnNewJobAsync(job),
+                        ex => logger.Debug(() => $"{nameof(OnNewJobAsync)}: {ex.Message}"))))
                 .Concat()
                 .Subscribe(_ => { }, ex =>
                 {
@@ -363,7 +363,7 @@ public class ErgoPool : PoolBase
 
     protected override async Task<double?> GetNicehashStaticMinDiff(WorkerContextBase context, string coinName, string algoName)
     {
-        var result= await base.GetNicehashStaticMinDiff(context, coinName, algoName);
+        var result = await base.GetNicehashStaticMinDiff(context, coinName, algoName);
 
         // adjust value to fit with our target value calculation
         if(result.HasValue)

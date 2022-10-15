@@ -22,8 +22,8 @@ using Miningcore.Util;
 using Miningcore.VarDiff;
 using Newtonsoft.Json;
 using NLog;
-using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
+using Contract = Miningcore.Contracts.Contract;
 
 // ReSharper disable InconsistentlySynchronizedField
 
@@ -296,7 +296,7 @@ public abstract class PoolBase : StratumServer,
                 {
                     logger.Info(() => $"[{connection.ConnectionId}] Banning worker for {config.Time} sec: {Math.Floor(ratioBad * 100)}% of the last {totalShares} shares were invalid");
 
-                    banManager.Ban(connection.RemoteEndpoint.Address, TimeSpan.FromSeconds(config.Time));
+                    banManager?.Ban(connection.RemoteEndpoint.Address, TimeSpan.FromSeconds(config.Time));
 
                     Disconnect(connection);
                 }
