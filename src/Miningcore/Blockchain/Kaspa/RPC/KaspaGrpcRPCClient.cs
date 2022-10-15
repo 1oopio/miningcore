@@ -1,13 +1,13 @@
-using Grpc.Net.Client;
-using Grpc.Core;
 using System.Diagnostics;
+using Grpc.Core;
+using Grpc.Net.Client;
+using Miningcore.Blockchain.Kaspa.RPC.Messages;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
 using Miningcore.Messaging;
 using Miningcore.Notifications.Messages;
 using NLog;
 using Contract = Miningcore.Contracts.Contract;
-using Miningcore.Blockchain.Kaspa.RPC.Messages;
 
 
 namespace Miningcore.Blockchain.Kaspa.RPC;
