@@ -1,12 +1,12 @@
-using Grpc.Net.Client;
 using System.Diagnostics;
+using Grpc.Net.Client;
+using Miningcore.Blockchain.Kaspa.RPC.Wallet;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
 using Miningcore.Messaging;
 using Miningcore.Notifications.Messages;
 using NLog;
 using Contract = Miningcore.Contracts.Contract;
-using Miningcore.Blockchain.Kaspa.RPC.Wallet;
 
 
 namespace Miningcore.Blockchain.Kaspa.RPC;
@@ -110,7 +110,7 @@ public class KaspaGrpcWalletClient
         }
         catch(Exception ex)
         {
-            if (throwErrors)
+            if(throwErrors)
             {
                 throw ex;
             }
