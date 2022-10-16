@@ -19,5 +19,5 @@ public class TransferRequest
     /// Number of outputs to mix in the transaction (this output + N decoys from the blockchain)
     /// </summary>
     [JsonProperty("ringsize")]
-    public uint RingSize { get; set; } = 32;
+    public uint RingSize { get; set; } = 16;
 }

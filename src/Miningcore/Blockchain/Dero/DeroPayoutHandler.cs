@@ -8,6 +8,7 @@ using Miningcore.Configuration;
 using Miningcore.Extensions;
 using Miningcore.Messaging;
 using Miningcore.Mining;
+using Miningcore.Notifications.Messages;
 using Miningcore.Payments;
 using Miningcore.Persistence;
 using Miningcore.Persistence.Model;
@@ -16,9 +17,8 @@ using Miningcore.Rpc;
 using Miningcore.Time;
 using Miningcore.Util;
 using Newtonsoft.Json;
-using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
-using Miningcore.Notifications.Messages;
+using Contract = Miningcore.Contracts.Contract;
 
 namespace Miningcore.Blockchain.Dero;
 
@@ -105,7 +105,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
         if(splitResponse == null)
             throw new Exception($"{LogCategory}] Unable to split integrated address of type: {balance.Address}");
 
-        if (splitResponse.Error != null)
+        if(splitResponse.Error != null)
             throw new Exception($"{LogCategory}] Unable to split integrated address of type: {balance.Address}: {splitResponse.Error.Message}");
 
         return new DeroBalance
@@ -201,6 +201,8 @@ public class DeroPayoutHandler : PayoutHandlerBase,
         if(request.Transfers.Length == 0)
             return true;
 
+        request.RingSize = extraPoolPaymentProcessingConfig.RingSize;
+
         logger.Info(() => $"[{LogCategory}] Paying {FormatAmount(deroBalances.Sum(x => x.Balance.Amount))} to {deroBalances.Length} addresses:\n{string.Join("\n", deroBalances.OrderByDescending(x => x.Balance.Amount).Select(x => $"{FormatAmount(x.Balance.Amount)} to {x.Address}"))}");
 
         // send command
@@ -269,7 +271,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
         decimal minBlockHeight = 0;
         var minBlockHeightFailure = false;
-        if (blocks.Length > 0)
+        if(blocks.Length > 0)
         {
             minBlockHeight = await MinBlockHeight(ct);
         }
@@ -301,7 +303,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
 
             decimal blockConfirmedReward = 0;
 
-            if ((blockHeader.Depth >= DeroConstants.PayoutMinBlockConfirmations) && !blockHeader.IsOrphaned)
+            if((blockHeader.Depth >= DeroConstants.PayoutMinBlockConfirmations) && !blockHeader.IsOrphaned)
             {
                 var request = new GetTransfersRequest
                 {
@@ -369,7 +371,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                 if(blockHeader.Depth >= DeroConstants.PayoutMinBlockConfirmations)
                 {
                     // Make sure node and wallet are at least the same height as the block to verify
-                    if ((minBlockHeight - DeroConstants.PayoutMinBlockConfirmations) < block.BlockHeight)
+                    if((minBlockHeight - DeroConstants.PayoutMinBlockConfirmations) < block.BlockHeight)
                     {
                         logger.Error(() => $"[{LogCategory}] Either node or wallet has not catched up to {block.BlockHeight} got {minBlockHeight}");
                         minBlockHeightFailure = true;
@@ -377,7 +379,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                     }
 
                     // We got no reward for the block candidate so its possible a orphaned (mini)block
-                    if (blockConfirmedReward == 0)
+                    if(blockConfirmedReward == 0)
                     {
                         block.Status = BlockStatus.Orphaned;
                         block.ConfirmationProgress = 0;
@@ -395,7 +397,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
             }
         }
 
-        if (minBlockHeightFailure)
+        if(minBlockHeightFailure)
         {
             var maxBlockHeight = blocks.Max(x => x.BlockHeight);
             messageBus.SendMessage(new AdminNotification("Classify blocks failed", $"Pool {poolConfig.Id} Either node or wallet has not catched up got {minBlockHeight}, highest block to check: {maxBlockHeight}"));
@@ -445,7 +447,7 @@ public class DeroPayoutHandler : PayoutHandlerBase,
         balances = balances
             .Where(x =>
             {
-                 switch(networkType)
+                switch(networkType)
                 {
                     case DeroNetworkType.Main:
                         if(!x.Address.ToLower().StartsWith("dero"))
@@ -478,7 +480,8 @@ public class DeroPayoutHandler : PayoutHandlerBase,
                     if(x.Address.Length > 5 && x.Address[4] == 'i')
                     {
                         return await SplitIntegratedAddress(x, ct);
-                    } else
+                    }
+                    else
                     {
                         return await Task.FromResult(new DeroBalance
                         {
