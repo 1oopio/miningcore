@@ -6,6 +6,7 @@ using Autofac;
 using AutoMapper;
 using Microsoft.IO;
 using Miningcore.Configuration;
+using Miningcore.Extensions;
 using Miningcore.JsonRpc;
 using Miningcore.Messaging;
 using Miningcore.Mining;
@@ -15,10 +16,9 @@ using Miningcore.Persistence;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Stratum;
 using Miningcore.Time;
-using Miningcore.Extensions;
 using Newtonsoft.Json;
-using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
+using Contract = Miningcore.Contracts.Contract;
 
 namespace Miningcore.Blockchain.Ethereum;
 
@@ -158,7 +158,7 @@ public class EthereumPool : PoolBase
             {
                 logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {minerName} for {loginFailureBanTimeout.TotalSeconds} sec");
 
-                banManager.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
+                banManager?.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
 
                 Disconnect(connection);
             }
@@ -404,7 +404,7 @@ public class EthereumPool : PoolBase
         {
             if(clusterConfig?.Banning?.BanOnLoginFailure is null or true)
             {
-                banManager.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
+                banManager?.Ban(connection.RemoteEndpoint.Address, loginFailureBanTimeout);
 
                 logger.Info(() => $"[{connection.ConnectionId}] Banning unauthorized worker {minerName} for {loginFailureBanTimeout.TotalSeconds} sec");
 
@@ -454,7 +454,7 @@ public class EthereumPool : PoolBase
             disposables.Add(manager.Jobs
                 .Select(_ => Observable.FromAsync(() =>
                     Guard(OnNewJobAsync,
-                        ex=> logger.Debug(() => $"{nameof(OnNewJobAsync)}: {ex.Message}"))))
+                        ex => logger.Debug(() => $"{nameof(OnNewJobAsync)}: {ex.Message}"))))
                 .Concat()
                 .Subscribe(_ => { }, ex =>
                 {
