@@ -9,7 +9,7 @@ RUN dotnet publish -c Release --framework net6.0 -o ../../build
 FROM mcr.microsoft.com/dotnet/aspnet:6.0-jammy
 WORKDIR /app
 RUN apt-get update && \
-    apt-get install -y libzmq5 libzmq3-dev && \
+    apt-get install -y libzmq5 libzmq3-dev libsodium-dev && \
     apt-get clean
 RUN groupadd -g 10001 miningcore
 RUN useradd -u 10001 -g miningcore -d /app miningcore
