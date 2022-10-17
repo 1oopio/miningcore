@@ -13,6 +13,7 @@ public class Block
     public string TransactionConfirmationData { get; set; }
     public string Miner { get; set; }
     public decimal Reward { get; set; }
+    public decimal? Price { get; set; }
     public string Source { get; set; }
     public string Hash { get; set; }
     public DateTime Created { get; set; }

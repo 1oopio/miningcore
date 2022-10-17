@@ -21,9 +21,9 @@ public class BlockRepository : IBlockRepository
 
         const string query =
             @"INSERT INTO blocks(poolid, blockheight, networkdifficulty, status, type, transactionconfirmationdata,
-                miner, reward, effort, confirmationprogress, source, hash, created)
+                miner, reward, effort, confirmationprogress, source, hash, price, created)
             VALUES(@poolid, @blockheight, @networkdifficulty, @status, @type, @transactionconfirmationdata,
-                @miner, @reward, @effort, @confirmationprogress, @source, @hash, @created)";
+                @miner, @reward, @effort, @confirmationprogress, @source, @hash, @price, @created)";
 
         await con.ExecuteAsync(query, mapped, tx);
     }
@@ -51,12 +51,12 @@ public class BlockRepository : IBlockRepository
             ORDER BY created DESC OFFSET @offset FETCH NEXT @pageSize ROWS ONLY";
 
         return (await con.QueryAsync<Entities.Block>(new CommandDefinition(query, new
-            {
-                poolId,
-                status = status.Select(x => x.ToString().ToLower()).ToArray(),
-                offset = page * pageSize,
-                pageSize
-            }, cancellationToken: ct)))
+        {
+            poolId,
+            status = status.Select(x => x.ToString().ToLower()).ToArray(),
+            offset = page * pageSize,
+            pageSize
+        }, cancellationToken: ct)))
             .Select(mapper.Map<Block>)
             .ToArray();
     }
@@ -67,11 +67,11 @@ public class BlockRepository : IBlockRepository
             ORDER BY created DESC OFFSET @offset FETCH NEXT @pageSize ROWS ONLY";
 
         return (await con.QueryAsync<Entities.Block>(new CommandDefinition(query, new
-            {
-                status = status.Select(x => x.ToString().ToLower()).ToArray(),
-                offset = page * pageSize,
-                pageSize
-            }, cancellationToken: ct)))
+        {
+            status = status.Select(x => x.ToString().ToLower()).ToArray(),
+            offset = page * pageSize,
+            pageSize
+        }, cancellationToken: ct)))
             .Select(mapper.Map<Block>)
             .ToArray();
     }
@@ -91,11 +91,11 @@ public class BlockRepository : IBlockRepository
             ORDER BY created DESC FETCH NEXT 1 ROWS ONLY";
 
         return (await con.QueryAsync<Entities.Block>(query, new
-            {
-                poolId,
-                before,
-                status = status.Select(x => x.ToString().ToLower()).ToArray()
-            }))
+        {
+            poolId,
+            before,
+            status = status.Select(x => x.ToString().ToLower()).ToArray()
+        }))
             .Select(mapper.Map<Block>)
             .FirstOrDefault();
     }
