@@ -27,4 +27,9 @@ public static class NumberExtensions
         value = BitConverter.ToUInt32(bytes, 0);
         return value;
     }
+
+    public static bool IsNullOrValue(this decimal? value, decimal valueToCheck)
+    {
+        return (value ?? valueToCheck) == valueToCheck;
+    }
 }
