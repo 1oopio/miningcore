@@ -852,6 +852,12 @@ public partial class PriceServiceConfig
     /// ApiKey for the price service
     /// </summary>
     public string ApiKey { get; set; }
+
+    /// <summary>
+    /// Cache TTL in seconds, default 5
+    /// Use 0 to disable caching
+    /// </summary>
+    public int CacheTTL { get; set; }
 }
 
 public class ApiRateLimitConfig
