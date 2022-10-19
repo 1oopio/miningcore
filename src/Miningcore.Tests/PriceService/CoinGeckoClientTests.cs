@@ -1,6 +1,4 @@
-using System.Net.Http;
 using System.Threading.Tasks;
-using Autofac;
 using Miningcore.Configuration;
 using Miningcore.PriceService;
 using Xunit;
@@ -19,10 +17,12 @@ public class CoinGeckoClientTests : TestBase
             {
                 Enabled = true,
                 Service = PriceServiceKind.CoinGecko,
-                VSCurrency = "usd"
+                VSCurrency = "usd",
+                CacheTTL = 0
             }
-        });
+        }, null);
         var price = await client.GetPrice("bitcoin");
+        Assert.NotNull(price);
         Assert.True(price > 0);
     }
 }

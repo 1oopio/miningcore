@@ -151,7 +151,7 @@ public class PPLNSPaymentScheme : IPayoutScheme
 
     #endregion // IPayoutScheme
 
-    private async Task<DateTime?> CalculateRewardsAsync(IMiningPool pool, IPayoutHandler payoutHandler,decimal window, Block block, decimal blockReward,
+    private async Task<DateTime?> CalculateRewardsAsync(IMiningPool pool, IPayoutHandler payoutHandler, decimal window, Block block, decimal blockReward,
         Dictionary<string, double> shares, Dictionary<string, decimal> rewards, CancellationToken ct)
     {
         var poolConfig = pool.Config;

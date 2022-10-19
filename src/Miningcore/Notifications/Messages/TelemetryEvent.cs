@@ -35,7 +35,12 @@ public enum TelemetryCategory
     /// <summary>
     /// API request handled
     /// </summary>
-    ApiRequest
+    ApiRequest,
+
+    /// <summary>
+    /// Price service request
+    /// </summary>
+    PriceServiceRequest
 }
 
 public record TelemetryEvent(string GroupId, TelemetryCategory Category, TimeSpan Elapsed, bool? Success = null, string Error = null)

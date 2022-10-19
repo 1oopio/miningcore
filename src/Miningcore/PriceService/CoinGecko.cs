@@ -1,22 +1,26 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Miningcore.Configuration;
 using Miningcore.Contracts;
 using Miningcore.Extensions;
+using Miningcore.Messaging;
+using Miningcore.Notifications.Messages;
 using Newtonsoft.Json;
-using Org.BouncyCastle.Security;
 
 namespace Miningcore.PriceService;
 
 public class CoinGeckoClient : IPriceService
 {
-    public CoinGeckoClient(ClusterConfig clusterConfig)
+    public CoinGeckoClient(ClusterConfig clusterConfig, IMessageBus messageBus)
     {
         config = clusterConfig?.PriceService;
         vsCurrency = config?.VSCurrency ?? "usd";
         client = new CoinGecko.Clients.CoinGeckoClient(httpClient, serializerSettings, config?.ApiKey);
         cacheTTL = TimeSpan.FromSeconds(config?.CacheTTL ?? 5);
 
+        this.messageBus = messageBus;
     }
+    private readonly IMessageBus messageBus;
     private readonly string vsCurrency;
     private readonly PriceServiceConfig config;
     private static readonly JsonSerializerSettings serializerSettings = new JsonSerializerSettings();
@@ -48,10 +52,16 @@ public class CoinGeckoClient : IPriceService
         return price;
     }
 
+    #endregion
+
     private async Task<decimal?> GetPriceInternal(string symbol)
     {
-        return (await client.SimpleClient.GetSimplePrice(new[] { symbol }, new[] { vsCurrency }))[symbol][vsCurrency];
-    }
+        var sw = Stopwatch.StartNew();
 
-    #endregion
+        var price = (await client.SimpleClient.GetSimplePrice(new[] { symbol }, new[] { vsCurrency }))[symbol][vsCurrency];
+
+        messageBus?.SendTelemetry(symbol, TelemetryCategory.PriceServiceRequest, PriceServiceKind.CoinGecko.ToString(), sw.Elapsed, null, null, null);
+
+        return price;
+    }
 }
