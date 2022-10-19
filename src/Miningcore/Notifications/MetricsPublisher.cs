@@ -29,6 +29,7 @@ public class MetricsPublisher : BackgroundService
     private Summary rpcRequestDurationSummary;
     private Summary stratumRequestDurationSummary;
     private Summary apiRequestDurationSummary;
+    private Summary priceServiceRequestDurationSummary;
     private Counter validShareCounter;
     private Counter invalidShareCounter;
     private Summary hashComputationSummary;
@@ -86,6 +87,11 @@ public class MetricsPublisher : BackgroundService
         {
             LabelNames = new[] { "algo" }
         });
+
+        priceServiceRequestDurationSummary = Metrics.CreateSummary("miningcore_price_service_request_execution_time", "Price service request execution time ms", new SummaryConfiguration
+        {
+            LabelNames = new[] { "coin", "service" }
+        });
     }
 
     private void OnTelemetryEvent(TelemetryEvent msg)
@@ -123,6 +129,10 @@ public class MetricsPublisher : BackgroundService
             case TelemetryCategory.Hash:
                 hashComputationSummary.WithLabels(msg.GroupId).Observe(msg.Elapsed.TotalMilliseconds);
                 break;
+
+            case TelemetryCategory.PriceServiceRequest:
+                priceServiceRequestDurationSummary.WithLabels(msg.GroupId, msg.Info).Observe(msg.Elapsed.TotalMilliseconds);
+                break;
         }
     }
 
@@ -135,13 +145,13 @@ public class MetricsPublisher : BackgroundService
     {
         var telemetryEvents = messageBus.Listen<TelemetryEvent>()
             .ObserveOn(TaskPoolScheduler.Default)
-            .Do(x=> Guard(()=> OnTelemetryEvent(x), ex=> logger.Error(ex.Message)))
-            .Select(_=> Unit.Default);
+            .Do(x => Guard(() => OnTelemetryEvent(x), ex => logger.Error(ex.Message)))
+            .Select(_ => Unit.Default);
 
         var hashrateNotifications = messageBus.Listen<HashrateNotification>()
             .ObserveOn(TaskPoolScheduler.Default)
-            .Do(x=> Guard(()=> OnHashrateNotification(x), ex=> logger.Error(ex.Message)))
-            .Select(_=> Unit.Default);
+            .Do(x => Guard(() => OnHashrateNotification(x), ex => logger.Error(ex.Message)))
+            .Select(_ => Unit.Default);
 
         return Observable.Merge(telemetryEvents, hashrateNotifications)
             .ToTask(ct);
