@@ -53,9 +53,9 @@ using NLog.Layouts;
 using NLog.Targets;
 using Prometheus;
 using WebSocketManager;
+using static Miningcore.Util.ActionUtils;
 using ILogger = NLog.ILogger;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
-using static Miningcore.Util.ActionUtils;
 
 // ReSharper disable AssignNullToNotNullAttribute
 // ReSharper disable PossibleNullReferenceException
@@ -183,12 +183,12 @@ public class Program : BackgroundService
                         });
 
                         // NSwag
-                        #if DEBUG
+#if DEBUG
                         services.AddOpenApiDocument(settings =>
                         {
                             settings.DocumentProcessors.Insert(0, new NSwagDocumentProcessor());
                         });
-                        #endif
+#endif
 
                         services.AddResponseCompression();
                         services.AddCors();
@@ -218,9 +218,9 @@ public class Program : BackgroundService
                             "/metrics"
                         }, clusterConfig.Api?.MetricsIpWhitelist);
 
-                        #if DEBUG
+#if DEBUG
                         app.UseOpenApi();
-                        #endif
+#endif
 
                         app.UseResponseCompression();
                         app.UseCors(corsPolicyBuilder => corsPolicyBuilder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
@@ -315,6 +315,12 @@ public class Program : BackgroundService
             // Pool stats
             services.AddHostedService<StatsRecorder>();
         }
+        else if(
+            (clusterConfig.Statistics != null && !clusterConfig.Statistics.Enabled) &&
+            (clusterConfig.ShareRelay == null))
+            // Enable dedicated reported hasrate recording if stats are disabled and no share relay is configured
+            services.AddHostedService<ReportedHashrateRecorder>();
+
     }
 
     private static IHost host;
@@ -365,7 +371,7 @@ public class Program : BackgroundService
         var coinTemplates = LoadCoinTemplates();
         logger.Info($"{coinTemplates.Keys.Count} coins loaded from '{string.Join(", ", clusterConfig.CoinTemplates)}'");
 
-        await Guard(()=> Task.WhenAll(clusterConfig.Pools
+        await Guard(() => Task.WhenAll(clusterConfig.Pools
             .Where(config => config.Enabled)
             .Select(config => RunPool(config, coinTemplates, ct))),
             ex =>
@@ -528,7 +534,7 @@ public class Program : BackgroundService
 
         versionOption = app.Option("-v|--version", "Version Information", CommandOptionType.NoValue);
         configFileOption = app.Option("-c|--config <configfile>", "Configuration File", CommandOptionType.SingleValue);
-        dumpConfigOption = app.Option("-dc|--dumpconfig", "Dump the configuration (useful for trouble-shooting typos in the config file)",CommandOptionType.NoValue);
+        dumpConfigOption = app.Option("-dc|--dumpconfig", "Dump the configuration (useful for trouble-shooting typos in the config file)", CommandOptionType.NoValue);
         shareRecoveryOption = app.Option("-rs", "Import lost shares using existing recovery file", CommandOptionType.SingleValue);
         generateSchemaOption = app.Option("-gcs|--generate-config-schema <outputfile>", "Generate JSON schema from configuration options", CommandOptionType.SingleValue);
         app.HelpOption("-? | -h | --help");
@@ -555,7 +561,7 @@ public class Program : BackgroundService
                 {
                     using(var validatingReader = new JSchemaValidatingReader(jsonReader)
                     {
-                        Schema =  LoadSchema()
+                        Schema = LoadSchema()
                     })
                     {
                         return serializer.Deserialize<ClusterConfig>(validatingReader);
@@ -821,7 +827,7 @@ public class Program : BackgroundService
 
         if(enableLegacyTimestampBehavior)
         {
-            logger.Info(()=> "Enabling Npgsql Legacy Timestamp Behavior");
+            logger.Info(() => "Enabling Npgsql Legacy Timestamp Behavior");
 
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
         }
@@ -884,7 +890,7 @@ public class Program : BackgroundService
 
         connectionString.Append($"CommandTimeout={pgConfig.CommandTimeout ?? 300};");
 
-        logger.Debug(()=> $"Using postgres connection string: {connectionString}");
+        logger.Debug(() => $"Using postgres connection string: {connectionString}");
 
         // register connection factory
         builder.RegisterInstance(new PgConnectionFactory(connectionString.ToString()))

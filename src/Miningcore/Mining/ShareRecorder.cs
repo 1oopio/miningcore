@@ -17,9 +17,9 @@ using Newtonsoft.Json;
 using NLog;
 using Polly;
 using Polly.CircuitBreaker;
+using static Miningcore.Util.ActionUtils;
 using Contract = Miningcore.Contracts.Contract;
 using Share = Miningcore.Blockchain.Share;
-using static Miningcore.Util.ActionUtils;
 
 namespace Miningcore.Mining;
 
@@ -103,7 +103,7 @@ public class ShareRecorder : BackgroundService
                 if(pools.TryGetValue(share.PoolId, out var poolConfig))
                     messageBus.NotifyBlockFound(share.PoolId, blockEntity, poolConfig.Template);
                 else
-                    logger.Warn(()=> $"Block found for unknown pool {share.PoolId}");
+                    logger.Warn(() => $"Block found for unknown pool {share.PoolId}");
             }
         });
     }
