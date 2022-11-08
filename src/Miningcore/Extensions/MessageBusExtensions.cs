@@ -1,10 +1,10 @@
-using Miningcore.Blockchain;
-using Miningcore.Messaging;
-using Miningcore.Persistence.Model;
 using System.Globalization;
-using Miningcore.Notifications.Messages;
+using Miningcore.Blockchain;
 using Miningcore.Configuration;
+using Miningcore.Messaging;
 using Miningcore.Mining;
+using Miningcore.Notifications.Messages;
+using Miningcore.Persistence.Model;
 
 namespace Miningcore.Extensions;
 
@@ -79,6 +79,7 @@ public static class MessageBusExtensions
             ExplorerLink = blockExplorerLink,
             Miner = block.Miner,
             MinerExplorerLink = minerExplorerLink,
+            Source = block.Source
         });
     }
 

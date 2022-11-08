@@ -41,4 +41,5 @@ public class BlockUnlockedNotification : BlockNotification
     public string Miner { get; set; }
     public string ExplorerLink { get; set; }
     public string MinerExplorerLink { get; set; }
+    public string Source { get; set; }
 }
