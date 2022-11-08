@@ -828,6 +828,7 @@ public class Program : BackgroundService
         if(enableLegacyTimestampBehavior)
         {
             logger.Info(() => "Enabling Npgsql Legacy Timestamp Behavior");
+            logger.Info(() => "Enabling Npgsql Legacy Timestamp Behavior");
 
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
         }
@@ -890,6 +891,7 @@ public class Program : BackgroundService
 
         connectionString.Append($"CommandTimeout={pgConfig.CommandTimeout ?? 300};");
 
+        logger.Debug(() => $"Using postgres connection string: {connectionString}");
         logger.Debug(() => $"Using postgres connection string: {connectionString}");
 
         // register connection factory
