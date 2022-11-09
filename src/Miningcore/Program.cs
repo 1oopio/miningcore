@@ -310,17 +310,17 @@ public class Program : BackgroundService
         else
             logger.Info("Payment processing is not enabled");
 
-        if(clusterConfig.Statistics == null || clusterConfig.Statistics.Enabled)
+        if(clusterConfig.Statistics == null || clusterConfig.Statistics.EnableStats)
         {
             // Pool stats
             services.AddHostedService<StatsRecorder>();
         }
-        else if(
-            (clusterConfig.Statistics != null && !clusterConfig.Statistics.Enabled) &&
-            (clusterConfig.ShareRelay == null))
+
+        if(clusterConfig.Statistics == null || clusterConfig.Statistics.EnableReportedHashrate)
+        {
             // Enable dedicated reported hasrate recording if stats are disabled and no share relay is configured
             services.AddHostedService<ReportedHashrateRecorder>();
-
+        }
     }
 
     private static IHost host;
