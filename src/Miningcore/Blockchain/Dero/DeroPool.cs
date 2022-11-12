@@ -42,7 +42,7 @@ public class DeroPool : PoolBase
 
     private DeroJobManager manager;
 
-    private async Task OnLoginAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
+    private async Task OnLoginAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
         var request = tsRequest.Value;
         var context = connection.ContextAs<DeroWorkerContext>();
@@ -68,7 +68,7 @@ public class DeroPool : PoolBase
             throw new StratumException(StratumError.MinusOne, "address is blacklisted");
 
         // validate login
-        var result = await manager.ValidateAddress(addressToValidate);
+        var result = await manager.ValidateAddress(addressToValidate, ct);
 
         context.IsSubscribed = result;
         context.IsAuthorized = result;
@@ -352,7 +352,7 @@ public class DeroPool : PoolBase
             switch(request.Method)
             {
                 case DeroStratumMethods.Login:
-                    await OnLoginAsync(connection, tsRequest);
+                    await OnLoginAsync(connection, tsRequest, ct);
                     break;
 
                 case DeroStratumMethods.Submit:
