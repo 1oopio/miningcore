@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Text;
 using Miningcore.Blockchain.Ethereum;
 using Miningcore.Contracts;
 using Miningcore.Crypto.Hashing.Ethash;
@@ -9,12 +8,12 @@ using Miningcore.Native;
 using Miningcore.Notifications.Messages;
 using NLog;
 
-namespace Miningcore.Crypto.Hashing.Etchash;
+namespace Miningcore.Crypto.Hashing.Ethash.Ethash;
 
-[Identifier("etchash")]
-public class EtcDag : IEthashDag
+[Identifier("ethash")]
+public class Dag : IEthashDag
 {
-    public EtcDag(ulong epoch)
+    public Dag(ulong epoch)
     {
         Epoch = epoch;
     }
@@ -32,7 +31,7 @@ public class EtcDag : IEthashDag
     {
         if(handle != IntPtr.Zero)
         {
-            EtcHash.etchash_full_delete(handle);
+            Miningcore.Native.Ethash.ethash_full_delete(handle);
             handle = IntPtr.Zero;
         }
     }
@@ -59,12 +58,12 @@ public class EtcDag : IEthashDag
                     var block = Epoch * EthereumConstants.EpochLength;
 
                     // Generate a temporary cache
-                    var light = EtcHash.etchash_light_new(block);
+                    var light = Miningcore.Native.Ethash.ethash_light_new(block);
 
                     try
                     {
                         // Generate the actual DAG
-                        handle = EtcHash.etchash_full_new(dagDir, light, progress =>
+                        handle = Miningcore.Native.Ethash.ethash_full_new(dagDir, light, progress =>
                         {
                             logger.Info(() => $"Generating DAG for epoch {Epoch}: {progress}%");
 
@@ -72,7 +71,7 @@ public class EtcDag : IEthashDag
                         });
 
                         if(handle == IntPtr.Zero)
-                            throw new OutOfMemoryException("etchash_full_new IO or memory error");
+                            throw new OutOfMemoryException("ethash_full_new IO or memory error");
 
                         logger.Info(() => $"Done generating DAG for epoch {Epoch} after {DateTime.Now - started}");
                     }
@@ -80,7 +79,7 @@ public class EtcDag : IEthashDag
                     finally
                     {
                         if(light != IntPtr.Zero)
-                            EtcHash.etchash_light_delete(light);
+                            Miningcore.Native.Ethash.ethash_light_delete(light);
                     }
                 }
 
@@ -101,11 +100,11 @@ public class EtcDag : IEthashDag
         mixDigest = null;
         result = null;
 
-        var value = new EtcHash.etchash_return_value();
+        var value = new Miningcore.Native.Ethash.ethash_return_value();
 
-        fixed (byte* input = hash)
+        fixed(byte* input = hash)
         {
-            EtcHash.etchash_full_compute(handle, input, nonce, ref value);
+            Miningcore.Native.Ethash.ethash_full_compute(handle, input, nonce, ref value);
         }
 
         if(value.success)
@@ -114,7 +113,7 @@ public class EtcDag : IEthashDag
             result = value.result.value;
         }
 
-        messageBus?.SendTelemetry("Etchash", TelemetryCategory.Hash, sw.Elapsed, value.success);
+        messageBus?.SendTelemetry("Ethash", TelemetryCategory.Hash, sw.Elapsed, value.success);
 
         return value.success;
     }

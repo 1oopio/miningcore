@@ -5,7 +5,7 @@ using Miningcore.Crypto.Hashing.Ethash;
 using Miningcore.Native;
 using NLog;
 
-namespace Miningcore.Crypto.Hashing.Etchash;
+namespace Miningcore.Crypto.Hashing.Ethash.Etchash;
 
 [Identifier("etchash")]
 public class EtchashFull : IEthashFull
@@ -26,13 +26,13 @@ public class EtchashFull : IEthashFull
     private EtcDag future;
     private string dagDir;
 
-    public string AlgoName {get; } = "etchash";
+    public string AlgoName { get; } = "etchash";
 
     public unsafe string GetDefaultDagDirectory()
     {
         var chars = new byte[512];
 
-        fixed (byte* data = chars)
+        fixed(byte* data = chars)
         {
             if(EtcHash.etchash_get_default_dirname(data, chars.Length))
             {
@@ -59,7 +59,7 @@ public class EtchashFull : IEthashFull
 
     public async Task<IEthashDag> GetDagAsync(ulong block, ILogger logger, CancellationToken ct)
     {
-        var epoch = block / EthereumConstants.EpochLength;
+        var epoch = block / EthereumClassicConstants.EpochLength;
         EtcDag result;
 
         lock(cacheLock)

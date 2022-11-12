@@ -45,6 +45,7 @@ public class EthereumConstants
 // https://github.com/EthereumCommonwealth/Roadmap/issues/56
 public class EthereumClassicConstants
 {
+    public const ulong EpochLength = 60000;
     public const ulong EtcEra1HardForkHeight = 1;
     public const ulong EtcEra2HardForkHeight = 5000001;
     public const ulong EtcEra3HardForkHeight = 10000001;

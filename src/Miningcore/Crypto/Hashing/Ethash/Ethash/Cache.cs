@@ -1,9 +1,8 @@
 using Miningcore.Blockchain.Ethereum;
 using Miningcore.Contracts;
-using Miningcore.Native;
 using NLog;
 
-namespace Miningcore.Crypto.Hashing.Ethhash;
+namespace Miningcore.Crypto.Hashing.Ethash.Ethash;
 
 public class Cache : IDisposable
 {
@@ -24,7 +23,7 @@ public class Cache : IDisposable
     {
         if(handle != IntPtr.Zero)
         {
-            EthHash.ethash_light_delete(handle);
+            Miningcore.Native.Ethash.ethash_light_delete(handle);
             handle = IntPtr.Zero;
         }
     }
@@ -41,7 +40,7 @@ public class Cache : IDisposable
                     logger.Debug(() => $"Generating cache for epoch {Epoch}");
 
                     var block = Epoch * EthereumConstants.EpochLength;
-                    handle = EthHash.ethash_light_new(block);
+                    handle = Miningcore.Native.Ethash.ethash_light_new(block);
 
                     logger.Debug(() => $"Done generating cache for epoch {Epoch} after {DateTime.Now - started}");
                     isGenerated = true;
@@ -57,11 +56,11 @@ public class Cache : IDisposable
         mixDigest = null;
         result = null;
 
-        var value = new EthHash.ethash_return_value();
+        var value = new Miningcore.Native.Ethash.ethash_return_value();
 
-        fixed (byte* input = hash)
+        fixed(byte* input = hash)
         {
-            EthHash.ethash_light_compute(handle, input, nonce, ref value);
+            Miningcore.Native.Ethash.ethash_light_compute(handle, input, nonce, ref value);
         }
 
         if(value.success)

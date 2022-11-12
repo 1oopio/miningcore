@@ -506,11 +506,11 @@ public partial class EthereumCoinTemplate : CoinTemplate
     [DefaultValue(EthereumSubfamily.None)]
     [JsonConverter(typeof(StringEnumConverter), true)]
     public EthereumSubfamily Subfamily { get; set; }
-    
+
     /// <summary>
-    /// Which hashing algorithm to use. (ethhash or etchash)
+    /// Which hashing algorithm to use. (ethash or etchash)
     /// </summary>
-    public string Ethasher { get; set; } = "ethhash";
+    public string Ethasher { get; set; } = "ethash";
 }
 
 public partial class ErgoCoinTemplate : CoinTemplate
@@ -775,7 +775,7 @@ public partial class ClusterPaymentProcessingConfig
     /// <summary>
     /// Indentifier used in coinbase transactions to identify the pool
     /// </summary>
-    public string CoinbaseString  { get; set; }
+    public string CoinbaseString { get; set; }
 }
 
 public partial class PersistenceConfig

@@ -5,9 +5,9 @@ using Miningcore.Crypto.Hashing.Ethash;
 using Miningcore.Native;
 using NLog;
 
-namespace Miningcore.Crypto.Hashing.Ethhash;
+namespace Miningcore.Crypto.Hashing.Ethash.Ethash;
 
-[Identifier("ethhash")]
+[Identifier("ethash")]
 public class EthashFull : IEthashFull
 {
     public void Setup(int numCaches, string dagDir, ILogger logger)
@@ -26,15 +26,15 @@ public class EthashFull : IEthashFull
     private Dag future;
     private string dagDir;
 
-    public string AlgoName {get; } = "ethash";
+    public string AlgoName { get; } = "ethash";
 
     public unsafe string GetDefaultDagDirectory()
     {
         var chars = new byte[512];
 
-        fixed (byte* data = chars)
+        fixed(byte* data = chars)
         {
-            if(EthHash.ethash_get_default_dirname(data, chars.Length))
+            if(Miningcore.Native.Ethash.ethash_get_default_dirname(data, chars.Length))
             {
                 int length;
                 for(length = 0; length < chars.Length; length++)

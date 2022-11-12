@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using Autofac;
-using Newtonsoft.Json.Linq;
 
 namespace Miningcore.Crypto.Hashing.Ethash;
 
@@ -20,7 +19,7 @@ public static class EthashFactory
         result = ctx.ResolveNamed<IEthashFull>(name);
 
         cacheFull.TryAdd(name, result);
-        
+
         return result;
     }
 }

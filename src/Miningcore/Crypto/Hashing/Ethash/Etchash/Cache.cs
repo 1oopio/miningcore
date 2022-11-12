@@ -3,7 +3,7 @@ using Miningcore.Contracts;
 using Miningcore.Native;
 using NLog;
 
-namespace Miningcore.Crypto.Hashing.Etchash;
+namespace Miningcore.Crypto.Hashing.Ethash.Etchash;
 
 public class Cache : IDisposable
 {
@@ -40,7 +40,7 @@ public class Cache : IDisposable
                     var started = DateTime.Now;
                     logger.Debug(() => $"Generating cache for epoch {Epoch}");
 
-                    var block = Epoch * EthereumConstants.EpochLength;
+                    var block = Epoch * EthereumClassicConstants.EpochLength;
                     handle = EtcHash.etchash_light_new(block);
 
                     logger.Debug(() => $"Done generating cache for epoch {Epoch} after {DateTime.Now - started}");
@@ -59,7 +59,7 @@ public class Cache : IDisposable
 
         var value = new EtcHash.etchash_return_value();
 
-        fixed (byte* input = hash)
+        fixed(byte* input = hash)
         {
             EtcHash.etchash_light_compute(handle, input, nonce, ref value);
         }
