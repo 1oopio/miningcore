@@ -88,7 +88,7 @@ public class EthereumPool : PoolBase
         context.IsSubscribed = true;
     }
 
-    private async Task OnAuthorizeAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
+    private async Task OnAuthorizeAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
         var request = tsRequest.Value;
         var context = connection.ContextAs<EthereumWorkerContext>();
@@ -106,7 +106,7 @@ public class EthereumPool : PoolBase
         var minerName = workerParts?.Length > 0 ? workerParts[0].Trim() : null;
         var workerName = workerParts?.Length > 1 ? workerParts[1].Trim() : "0";
 
-        context.IsAuthorized = manager.ValidateAddress(minerName);
+        context.IsAuthorized = await manager.ValidateAddress(minerName, ct);
 
         // respond
         await connection.RespondAsync(context.IsAuthorized, request.Id);
@@ -330,7 +330,7 @@ public class EthereumPool : PoolBase
 
     #region // Protocol V1 handlers - https://github.com/sammy007/open-ethereum-pool/blob/master/docs/STRATUM.md
 
-    private async Task OnSubmitLoginAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
+    private async Task OnSubmitLoginAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
         var request = tsRequest.Value;
         var context = connection.ContextAs<EthereumWorkerContext>();
@@ -354,7 +354,7 @@ public class EthereumPool : PoolBase
 
         manager.PrepareWorker(connection);
 
-        context.IsAuthorized = manager.ValidateAddress(minerName);
+        context.IsAuthorized = await manager.ValidateAddress(minerName, ct);
 
         // respond
         await connection.RespondAsync(context.IsAuthorized, request.Id);
@@ -541,7 +541,7 @@ public class EthereumPool : PoolBase
                 case EthereumStratumMethods.Authorize:
                     EnsureProtocolVersion(context, 2);
 
-                    await OnAuthorizeAsync(connection, tsRequest);
+                    await OnAuthorizeAsync(connection, tsRequest, ct);
                     break;
 
                 case EthereumStratumMethods.SubmitShare:
@@ -561,7 +561,7 @@ public class EthereumPool : PoolBase
                 case EthereumStratumMethods.SubmitLogin:
                     context.ProtocolVersion = 1;    // lock in protocol version
 
-                    await OnSubmitLoginAsync(connection, tsRequest);
+                    await OnSubmitLoginAsync(connection, tsRequest, ct);
                     break;
 
                 case EthereumStratumMethods.GetWork:

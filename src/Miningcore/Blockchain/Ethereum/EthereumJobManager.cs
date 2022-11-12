@@ -1,9 +1,11 @@
 using System.Globalization;
 using System.Numerics;
+using System.Reactive;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Text;
 using Autofac;
+using Microsoft.AspNetCore.Mvc;
 using Miningcore.Blockchain.Bitcoin;
 using Miningcore.Blockchain.Ethereum.Configuration;
 using Miningcore.Blockchain.Ethereum.DaemonResponses;
@@ -12,19 +14,18 @@ using Miningcore.Crypto.Hashing.Ethash;
 using Miningcore.Extensions;
 using Miningcore.JsonRpc;
 using Miningcore.Messaging;
+using Miningcore.Mining;
 using Miningcore.Notifications.Messages;
+using Miningcore.Rpc;
 using Miningcore.Stratum;
 using Miningcore.Time;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NLog;
+using static Miningcore.Util.ActionUtils;
 using Block = Miningcore.Blockchain.Ethereum.DaemonResponses.Block;
 using Contract = Miningcore.Contracts.Contract;
 using EC = Miningcore.Blockchain.Ethereum.EthCommands;
-using static Miningcore.Util.ActionUtils;
-using System.Reactive;
-using Miningcore.Mining;
-using Miningcore.Rpc;
-using Newtonsoft.Json.Linq;
 
 namespace Miningcore.Blockchain.Ethereum;
 
@@ -358,7 +359,7 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
         }
     }
 
-    public bool ValidateAddress(string address)
+    public async Task<bool> ValidateAddress(string address, CancellationToken ct)
     {
         if(string.IsNullOrEmpty(address))
             return false;
@@ -366,6 +367,23 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
         if(EthereumConstants.ZeroHashPattern.IsMatch(address) ||
            !EthereumConstants.ValidAddressPattern.IsMatch(address))
             return false;
+
+        if(!extraPoolConfig.AllowSmartContractMining)
+        {
+            var response = await rpc.ExecuteAsync<byte[]>(logger, EC.CodaAt, ct, new[] { (object) address, "latest" });
+
+            if(response.Error != null)
+            {
+                var error = response.Error?.Message ?? "failed to validate address";
+
+                throw new StratumException(StratumError.UnauthorizedWorker, error);
+            }
+
+            if(response.Response.Length > 0)
+            {
+                throw new StratumException(StratumError.UnauthorizedWorker, "smart-contract mining is not allowed");
+            }
+        }
 
         return true;
     }
@@ -546,8 +564,8 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
         // Periodically update network stats
         Observable.Interval(TimeSpan.FromMinutes(10))
             .Select(via => Observable.FromAsync(() =>
-                Guard(()=> UpdateNetworkStatsAsync(ct),
-                    ex=> logger.Error(ex))))
+                Guard(() => UpdateNetworkStatsAsync(ct),
+                    ex => logger.Error(ex))))
             .Concat()
             .Subscribe();
 
@@ -591,7 +609,7 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
 
         var endpointExtra = daemonEndpoints
             .Where(x => x.Extra.SafeExtensionDataAs<EthereumDaemonEndpointConfigExtra>() != null)
-            .Select(x=> Tuple.Create(x, x.Extra.SafeExtensionDataAs<EthereumDaemonEndpointConfigExtra>()))
+            .Select(x => Tuple.Create(x, x.Extra.SafeExtensionDataAs<EthereumDaemonEndpointConfigExtra>()))
             .FirstOrDefault();
 
         if(endpointExtra?.Item2?.PortWs.HasValue == true)

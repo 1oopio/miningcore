@@ -18,4 +18,9 @@ public class EthereumPoolConfigExtra
     /// getWork stream published via ZMQ
     /// </summary>
     public ZmqPubSubEndpointConfig BtStream { get; set; }
+
+    /// <summary>
+    /// Allow mining to a smart contract
+    /// </summary>
+    public bool AllowSmartContractMining { get; set; } = true;
 }
