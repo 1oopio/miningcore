@@ -43,14 +43,22 @@
 
 uint64_t etchash_get_datasize(uint64_t const block_number)
 {
-	assert(block_number / ETCHASH_EPOCH_LENGTH < 2048);
-	return dag_sizes[block_number / ETCHASH_EPOCH_LENGTH];
+	uint64_t epoch_lenght = ETHASH_EPOCH_LENGTH;
+	if (block_number >= ETCHASH_ACTIVATION_BLOCK) {
+		epoch_lenght = ETCHASH_EPOCH_LENGTH;
+	}
+	assert(block_number / epoch_lenght < 2048);
+	return dag_sizes[block_number / epoch_lenght];
 }
 
 uint64_t etchash_get_cachesize(uint64_t const block_number)
 {
-	assert(block_number / ETCHASH_EPOCH_LENGTH < 2048);
-	return cache_sizes[block_number / ETCHASH_EPOCH_LENGTH];
+	uint64_t epoch_lenght = ETHASH_EPOCH_LENGTH;
+	if (block_number >= ETCHASH_ACTIVATION_BLOCK) {
+		epoch_lenght = ETCHASH_EPOCH_LENGTH;
+	}
+	assert(block_number / epoch_lenght < 2048);
+	return cache_sizes[block_number / epoch_lenght];
 }
 
 // Follows Sergio's "STRICT MEMORY HARD HASHING FUNCTIONS" (2014)
@@ -274,7 +282,11 @@ etchash_h256_t etchash_get_seedhash(uint64_t block_number)
 {
 	etchash_h256_t ret;
 	etchash_h256_reset(&ret);
-	uint64_t const epochs = block_number / ETCHASH_EPOCH_LENGTH;
+	uint64_t epoch_lenght = ETHASH_EPOCH_LENGTH;
+	if (block_number >= ETCHASH_ACTIVATION_BLOCK) {
+		epoch_lenght = ETCHASH_EPOCH_LENGTH;
+	}
+	uint64_t const epochs = block_number / epoch_lenght;
 	for (uint32_t i = 0; i < epochs; ++i)
 		SHA3_256(&ret, (uint8_t*)&ret, 32);
 	return ret;
