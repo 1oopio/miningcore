@@ -17,8 +17,8 @@ using Miningcore.Time;
 using Miningcore.Util;
 using Newtonsoft.Json;
 using NLog;
-using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
+using Contract = Miningcore.Contracts.Contract;
 
 namespace Miningcore.Blockchain.Dero;
 
@@ -194,7 +194,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
         share.IsBlockCandidate = true;
 
-        if (!response.Response.mini)
+        if(!response.Response.mini)
         {
             share.BlockHash = response.Response?.BlockId;
             logger.Info(() => $"Block {share.BlockHeight} [{share.BlockHash[..6]}] submission done");
@@ -255,7 +255,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         ConfigureDaemons();
     }
 
-    public async Task<bool> ValidateAddress(string address)
+    public async Task<bool> ValidateAddress(string address, CancellationToken ct)
     {
         if(string.IsNullOrEmpty(address))
             return false;
@@ -278,7 +278,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
             Address = address,
         };
 
-        var response = await rpc.ExecuteAsync<GetEncryptedBalanceResponse>(logger, DeroCommands.GetEncryptedBalance, CancellationToken.None, request);
+        var response = await rpc.ExecuteAsync<GetEncryptedBalanceResponse>(logger, DeroCommands.GetEncryptedBalance, ct, request);
 
         if(response.Error != null || response?.Response?.Status != "OK")
         {
@@ -292,9 +292,9 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
     public bool IsAddressBlacklisted(string address)
     {
-        if (extraPoolConfig.BlacklistedAddresses == null || extraPoolConfig.BlacklistedAddresses.Length == 0)
+        if(extraPoolConfig.BlacklistedAddresses == null || extraPoolConfig.BlacklistedAddresses.Length == 0)
             return false;
-            
+
         return extraPoolConfig.BlacklistedAddresses.Contains(address);
     }
 
@@ -344,7 +344,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         // if block candidate, submit & check if accepted by network
         if(share.IsBlockCandidate)
         {
-            if (job.MFinal)
+            if(job.MFinal)
             {
                 logger.Info(() => $"Submitting block {share.BlockHeight} [{share.BlockHash[..6]}]");
             }
@@ -355,15 +355,15 @@ public class DeroJobManager : JobManagerBase<DeroJob>
 
             var error = await SubmitBlockAsync(share, workerJob.JobId, blockHex);
 
-            if (error != null)
+            if(error != null)
             {
                 throw new StratumException(StratumError.MinusOne, error);
             }
 
             if(share.IsBlockCandidate)
             {
-                if (job.MFinal)
-                { 
+                if(job.MFinal)
+                {
                     logger.Info(() => $"Daemon accepted block {share.BlockHeight} [{share.BlockHash[..6]}] submitted by {context.Miner}");
                     OnBlockFound();
                     share.TransactionConfirmationData = share.BlockHash;
@@ -417,9 +417,9 @@ public class DeroJobManager : JobManagerBase<DeroJob>
             // test wallet daemons
             var responses2 = await walletRpc.ExecuteAsync<GetAddressResponse>(logger, DeroWalletCommands.GetAddress, ct);
 
-            if (responses2.Response != null)
+            if(responses2.Response != null)
             {
-                if (responses2.Response.Address != poolConfig.Address)
+                if(responses2.Response.Address != poolConfig.Address)
                 {
                     logger.Warn(() => $"Pool address in wallet differs from configuration! ${poolConfig.Address} vs ${responses2.Response.Address}");
                     return false;
@@ -456,7 +456,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
             var response = await rpc.ExecuteAsync<GetBlockTemplateResponse>(logger,
                 DeroCommands.GetBlockTemplate, ct, request);
 
-            var isSynched = response.Error is not {Code: -9};
+            var isSynched = response.Error is not { Code: -9 };
 
             if(isSynched)
             {
@@ -507,8 +507,8 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         // Periodically update network stats
         Observable.Interval(TimeSpan.FromMinutes(1))
             .Select(via => Observable.FromAsync(() =>
-                Guard(()=> UpdateNetworkStatsAsync(ct),
-                    ex=> logger.Error(ex))))
+                Guard(() => UpdateNetworkStatsAsync(ct),
+                    ex => logger.Error(ex))))
             .Concat()
             .Subscribe();
 
@@ -524,7 +524,7 @@ public class DeroJobManager : JobManagerBase<DeroJob>
         {
             blockSubmission.Select(x => (JobRefreshBy.BlockFound, (string) null))
         };
-                
+
         if(poolConfig.BlockRefreshInterval > 0)
         {
             // periodically update block-template
