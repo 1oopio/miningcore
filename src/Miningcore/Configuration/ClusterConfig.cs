@@ -770,7 +770,7 @@ public partial class ClusterPaymentProcessingConfig
     /// <summary>
     /// Indentifier used in coinbase transactions to identify the pool
     /// </summary>
-    public string CoinbaseString  { get; set; }
+    public string CoinbaseString { get; set; }
 }
 
 public partial class PersistenceConfig
@@ -910,7 +910,7 @@ public class Statistics
     /// <summary>
     /// Enable statistics recording
     /// </summary>
-    public bool Enabled { get; set; }
+    public bool EnableStats { get; set; }
 
     /// <summary>
     /// Statistics update interval in seconds
@@ -931,6 +931,11 @@ public class Statistics
     /// Time window in days of stats to discard when cleaning up periodically
     /// </summary>
     public int? CleanupDays { get; set; }
+
+    /// <summary>
+    /// Enable recording of reported hashrate
+    /// </summary>
+    public bool EnableReportedHashrate { get; set; }
 
     /// <summary>
     /// Interval in seconds to persist reported hashrate to database

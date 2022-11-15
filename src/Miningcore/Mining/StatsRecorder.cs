@@ -8,7 +8,6 @@ using System.Reactive.Linq;
 using Autofac;
 using AutoMapper;
 using Microsoft.Extensions.Hosting;
-using Miningcore.Blockchain;
 using Miningcore.Configuration;
 using Miningcore.Contracts;
 using Miningcore.Extensions;
@@ -54,7 +53,7 @@ public class StatsRecorder : BackgroundService
         updateInterval = TimeSpan.FromSeconds(clusterConfig.Statistics?.UpdateInterval ?? 120);
         gcInterval = TimeSpan.FromHours(clusterConfig.Statistics?.GcInterval ?? 4);
         hashrateCalculationWindow = TimeSpan.FromMinutes(clusterConfig.Statistics?.HashrateCalculationWindow ?? 10);
-        cleanupDays  = TimeSpan.FromDays(clusterConfig.Statistics?.CleanupDays ?? 180);
+        cleanupDays = TimeSpan.FromDays(clusterConfig.Statistics?.CleanupDays ?? 180);
 
         BuildFaultHandlingPolicy();
     }
@@ -88,26 +87,6 @@ public class StatsRecorder : BackgroundService
             AttachPool(notification.Pool);
     }
 
-    private async Task OnMinerWorkerReportedHashrate(ReportedHashrate hashrate, CancellationToken ct)
-    {
-        var stats = new MinerWorkerPerformanceStats
-        {
-            Created = clock.Now,
-            PoolId = hashrate.PoolId,
-            Miner = hashrate.Miner,
-            Worker = hashrate.Worker,
-            Hashrate = hashrate.Hashrate,
-            HashrateType = "reported"
-        };
-
-        // persist
-        await cf.RunTx(async (con, tx) =>
-            await statsRepo.InsertMinerWorkerPerformanceStatsAsync(con, tx, stats, ct)
-        );
-
-        logger.Info(() => $"[{stats.PoolId}] Worker {stats.Miner}{(!string.IsNullOrEmpty(stats.Worker) ? $".{stats.Worker}" : string.Empty)}: Reported: {FormatUtil.FormatHashrate(stats.Hashrate)}");
-    }
-
     private async Task UpdatePoolHashratesAsync(CancellationToken ct)
     {
         var now = clock.Now;
@@ -134,9 +113,9 @@ public class StatsRecorder : BackgroundService
                 cf.Run(con => shareRepo.GetHashAccumulationBetweenAsync(con, poolId, timeFrom, now, ct)));
 
             var byMiner = result.GroupBy(x => x.Miner).ToArray();
-            var byMinerAndWorker = result.GroupBy(x => new { x.Miner, x.Worker}).ToArray();
+            var byMinerAndWorker = result.GroupBy(x => new { x.Miner, x.Worker }).ToArray();
 
-            if (result.Length > 0)
+            if(result.Length > 0)
             {
                 // pool miners
                 pool.PoolStats.ConnectedMiners = byMiner.Length; // update connected miners
@@ -144,8 +123,8 @@ public class StatsRecorder : BackgroundService
 
                 // Stats calc windows
                 var timeFrameBeforeFirstShare = ((result.Min(x => x.FirstShare) - timeFrom).TotalSeconds);
-                var timeFrameAfterLastShare   = ((now - result.Max(x => x.LastShare)).TotalSeconds);
-                var timeFrameFirstLastShare   = (hashrateCalculationWindow.TotalSeconds - timeFrameBeforeFirstShare - timeFrameAfterLastShare);
+                var timeFrameAfterLastShare = ((now - result.Max(x => x.LastShare)).TotalSeconds);
+                var timeFrameFirstLastShare = (hashrateCalculationWindow.TotalSeconds - timeFrameBeforeFirstShare - timeFrameAfterLastShare);
                 //var poolHashTimeFrame         = Math.Floor(TimeFrameFirstLastShare + (TimeFrameBeforeFirstShare / 3) + (TimeFrameAfterLastShare * 3)) ;
 
                 var poolHashTimeFrame = hashrateCalculationWindow.TotalSeconds;
@@ -206,7 +185,7 @@ public class StatsRecorder : BackgroundService
 
             var currentNonZeroMinerWorkers = new HashSet<string>();
 
-            foreach (var minerHashes in byMiner)
+            foreach(var minerHashes in byMiner)
             {
                 if(ct.IsCancellationRequested)
                     return;
@@ -220,7 +199,7 @@ public class StatsRecorder : BackgroundService
                     // book keeping
                     currentNonZeroMinerWorkers.Add(BuildKey(stats.Miner));
 
-                    foreach (var item in minerHashes)
+                    foreach(var item in minerHashes)
                     {
                         // set default values
                         stats.Hashrate = 0;
@@ -228,17 +207,17 @@ public class StatsRecorder : BackgroundService
 
                         // miner stats calculation windows
                         var timeFrameBeforeFirstShare = ((minerHashes.Min(x => x.FirstShare) - timeFrom).TotalSeconds);
-                        var timeFrameAfterLastShare   = ((now - minerHashes.Max(x => x.LastShare)).TotalSeconds);
+                        var timeFrameAfterLastShare = ((now - minerHashes.Max(x => x.LastShare)).TotalSeconds);
 
                         var minerHashTimeFrame = hashrateCalculationWindow.TotalSeconds;
 
-                        if(timeFrameBeforeFirstShare >= (hashrateCalculationWindow.TotalSeconds * 0.1) )
-                            minerHashTimeFrame = Math.Floor(hashrateCalculationWindow.TotalSeconds - timeFrameBeforeFirstShare );
+                        if(timeFrameBeforeFirstShare >= (hashrateCalculationWindow.TotalSeconds * 0.1))
+                            minerHashTimeFrame = Math.Floor(hashrateCalculationWindow.TotalSeconds - timeFrameBeforeFirstShare);
 
-                        if(timeFrameAfterLastShare   >= (hashrateCalculationWindow.TotalSeconds * 0.1) )
-                            minerHashTimeFrame = Math.Floor(hashrateCalculationWindow.TotalSeconds + timeFrameAfterLastShare   );
+                        if(timeFrameAfterLastShare >= (hashrateCalculationWindow.TotalSeconds * 0.1))
+                            minerHashTimeFrame = Math.Floor(hashrateCalculationWindow.TotalSeconds + timeFrameAfterLastShare);
 
-                        if( (timeFrameBeforeFirstShare >= (hashrateCalculationWindow.TotalSeconds * 0.1)) && (timeFrameAfterLastShare >= (hashrateCalculationWindow.TotalSeconds * 0.1)) )
+                        if((timeFrameBeforeFirstShare >= (hashrateCalculationWindow.TotalSeconds * 0.1)) && (timeFrameAfterLastShare >= (hashrateCalculationWindow.TotalSeconds * 0.1)))
                             minerHashTimeFrame = (hashrateCalculationWindow.TotalSeconds - timeFrameBeforeFirstShare + timeFrameAfterLastShare);
 
                         if(minerHashTimeFrame < 1)
@@ -399,11 +378,6 @@ public class StatsRecorder : BackgroundService
             disposables.Add(messageBus.Listen<PoolStatusNotification>()
                 .ObserveOn(TaskPoolScheduler.Default)
                 .Subscribe(OnPoolStatusNotification));
-
-            // Reported hashrate
-            disposables.Add(messageBus.Listen<StratumReportedHashrate>()
-                .ObserveOn(TaskPoolScheduler.Default)
-                .Subscribe(msg => Task.FromResult(OnMinerWorkerReportedHashrate(msg.ReportedHashrate, ct))));
 
             logger.Info(() => "Online");
 
