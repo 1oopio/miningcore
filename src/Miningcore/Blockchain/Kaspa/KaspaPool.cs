@@ -80,7 +80,7 @@ public class KaspaPool : PoolBase
         context.IsSubscribed = true;
     }
 
-    private async Task OnAuthorizeAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
+    private async Task OnAuthorizeAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
         var request = tsRequest.Value;
         var context = connection.ContextAs<KaspaWorkerContext>();
@@ -98,7 +98,7 @@ public class KaspaPool : PoolBase
         var minerName = workerParts?.Length > 0 ? workerParts[0].Trim() : null;
         var workerName = workerParts?.Length > 1 ? workerParts[1].Trim() : "0";
 
-        context.IsAuthorized = manager.ValidateAddress(minerName);
+        context.IsAuthorized = await manager.ValidateAddress(minerName, ct);
 
         // respond
         await connection.RespondAsync(context.IsAuthorized, request.Id);
@@ -372,7 +372,7 @@ public class KaspaPool : PoolBase
                     await OnSubscribeAsync(connection, tsRequest);
                     break;
                 case KaspaStratumMethods.Authorize:
-                    await OnAuthorizeAsync(connection, tsRequest);
+                    await OnAuthorizeAsync(connection, tsRequest, ct);
                     break;
                 case KaspaStratumMethods.SubmitShare:
                     await OnSubmitAsync(connection, tsRequest, ct);
