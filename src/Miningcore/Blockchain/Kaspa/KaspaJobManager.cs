@@ -231,7 +231,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         ConfigureDaemons();
     }
 
-    public bool ValidateAddress(string address)
+    public async Task<bool> ValidateAddress(string address, CancellationToken ct)
     {
         if(string.IsNullOrEmpty(address))
             return false;
@@ -239,20 +239,32 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         switch(networkType)
         {
             case KaspaNetworkType.Main:
-                if(!address.ToLower().StartsWith("kaspa:"))
-                    return false;
-                break;
+                if(address.ToLower().StartsWith("kaspa:"))
+                    break;
+                return false;
 
             case KaspaNetworkType.Test:
-                if(!address.ToLower().StartsWith("kaspatest:"))
-                    return false;
-                break;
+                if(address.ToLower().StartsWith("kaspatest:"))
+                    break;
+                return false;
 
             case KaspaNetworkType.Dev:
-                if(!address.ToLower().StartsWith("kaspadev:"))
-                    return false;
-                break;
+                if(address.ToLower().StartsWith("kaspadev:"))
+                    break;
+                return false;
         }
+
+        // get balance
+        var request = new KaspadMessage();
+        request.GetUtxosByAddressesRequest = new GetUtxosByAddressesRequestMessage();
+        request.GetUtxosByAddressesRequest.Addresses.Add(address);
+
+        var response = await grpc.ExecuteAsync(logger, request, ct);
+        if(response == null)
+            throw new StratumException(StratumError.UnauthorizedWorker, "failed to validate address");
+
+        if(response.GetUtxosByAddressesResponse.Error != null)
+            throw new StratumException(StratumError.UnauthorizedWorker, response.GetUtxosByAddressesResponse.Error.Message);
 
         return true;
     }
