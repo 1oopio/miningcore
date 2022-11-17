@@ -20,5 +20,8 @@ public interface IPayoutHandler
 
 public interface IPayoutScheme
 {
-    Task UpdateBalancesAsync(IDbConnection con, IDbTransaction tx, IMiningPool pool, IPayoutHandler payoutHandler, Block block, decimal blockReward, CancellationToken ct);
+    /// <summary>
+    /// Returns whether the current block must be updated in the database
+    /// </summary>
+    Task<bool> UpdateBalancesAsync(IDbConnection con, IDbTransaction tx, IMiningPool pool, IPayoutHandler payoutHandler, Block block, CancellationToken ct);
 }

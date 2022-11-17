@@ -15,7 +15,7 @@ public class AutoMapperProfile : Profile
     public AutoMapperProfile()
     {
         // Fix for Automapper 11 which chokes on recursive objects such as JToken
-        CreateMap<JToken, JToken>().ConvertUsing(x=> x);
+        CreateMap<JToken, JToken>().ConvertUsing(x => x);
 
         //////////////////////
         // outgoing mappings
@@ -29,6 +29,7 @@ public class AutoMapperProfile : Profile
             .ForMember(dest => dest.Status, opt => opt.Ignore());
 
         CreateMap<BlockStatus, string>().ConvertUsing(e => e.ToString().ToLower());
+        CreateMap<BlockPaymentStatus, string>().ConvertUsing(e => e.ToString().ToLower());
 
         CreateMap<Mining.PoolStats, PoolStats>()
             .ForMember(dest => dest.PoolId, opt => opt.Ignore())

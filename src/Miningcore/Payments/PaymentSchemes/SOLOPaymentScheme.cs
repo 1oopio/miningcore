@@ -30,13 +30,14 @@ public class SOLOPaymentScheme : IPayoutScheme
 
     #region IPayoutScheme
 
-    public async Task UpdateBalancesAsync(IDbConnection con, IDbTransaction tx, IMiningPool pool, IPayoutHandler payoutHandler,
-        Block block, decimal blockReward, CancellationToken ct)
+    public async Task<bool> UpdateBalancesAsync(IDbConnection con, IDbTransaction tx, IMiningPool pool, IPayoutHandler payoutHandler,
+        Block block, CancellationToken ct)
     {
         var poolConfig = pool.Config;
 
         // calculate rewards
         var rewards = new Dictionary<string, decimal>();
+        var blockReward = await payoutHandler.UpdateBlockRewardBalancesAsync(con, tx, pool, block, ct);
         var shareCutOffDate = CalculateRewards(block, blockReward, rewards, ct);
 
         // update balances
@@ -64,6 +65,8 @@ public class SOLOPaymentScheme : IPayoutScheme
                 await shareRepo.DeleteSharesByMinerAsync(con, tx, poolConfig.Id, block.Miner, ct);
             }
         }
+
+        return true;
     }
 
     #endregion // IPayoutScheme

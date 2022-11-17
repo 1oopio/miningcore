@@ -20,9 +20,9 @@ public class BlockRepository : IBlockRepository
         var mapped = mapper.Map<Entities.Block>(block);
 
         const string query =
-            @"INSERT INTO blocks(poolid, blockheight, networkdifficulty, status, type, transactionconfirmationdata,
+            @"INSERT INTO blocks(poolid, blockheight, networkdifficulty, status, paymentstatus, type, transactionconfirmationdata,
                 miner, reward, effort, confirmationprogress, source, hash, created)
-            VALUES(@poolid, @blockheight, @networkdifficulty, @status, @type, @transactionconfirmationdata,
+            VALUES(@poolid, @blockheight, @networkdifficulty, @status, @paymentstatus, @type, @transactionconfirmationdata,
                 @miner, @reward, @effort, @confirmationprogress, @source, @hash, @created)";
 
         await con.ExecuteAsync(query, mapped, tx);
@@ -38,7 +38,7 @@ public class BlockRepository : IBlockRepository
     {
         var mapped = mapper.Map<Entities.Block>(block);
 
-        const string query = @"UPDATE blocks SET blockheight = @blockheight, status = @status, type = @type,
+        const string query = @"UPDATE blocks SET blockheight = @blockheight, status = @status, paymentstatus = @paymentstatus, type = @type,
             reward = @reward, effort = @effort, confirmationprogress = @confirmationprogress, hash = @hash WHERE id = @id";
 
         await con.ExecuteAsync(query, mapped, tx);
@@ -85,6 +85,21 @@ public class BlockRepository : IBlockRepository
             .ToArray();
     }
 
+    public async Task<uint> GetPendingBlocksForPoolCountAsync(IDbConnection con, string poolId, CancellationToken ct)
+    {
+        const string query = @"SELECT COUNT(*) FROM blocks WHERE poolid = @poolid AND status = @status";
+
+        return await con.ExecuteScalarAsync<uint>(
+            new CommandDefinition(
+                query,
+                new
+                {
+                    status = BlockStatus.Pending.ToString().ToLower(),
+                    poolid = poolId
+                },
+                cancellationToken: ct));
+    }
+
     public async Task<Block> GetBlockBeforeAsync(IDbConnection con, string poolId, BlockStatus[] status, DateTime before)
     {
         const string query = @"SELECT * FROM blocks WHERE poolid = @poolid AND status = ANY(@status) AND created < @before
@@ -121,5 +136,27 @@ public class BlockRepository : IBlockRepository
         var entity = await con.QuerySingleOrDefaultAsync<Entities.Block>(new CommandDefinition(query, new { poolId, height }));
 
         return entity == null ? null : mapper.Map<Block>(entity);
+    }
+
+    public async Task<Block[]> GetPaymentStatusReadyBlocks(IDbConnection con, string poolId, uint limit, CancellationToken ct)
+    {
+        const string query = @"
+        SELECT * FROM blocks 
+        WHERE
+            poolid = @poolId AND
+            status = @status AND
+            paymentstatus = @paymentstatus
+        ORDER BY created ASC
+        LIMIT @limit";
+
+        return (await con.QueryAsync<Entities.Block>(new CommandDefinition(query, new
+        {
+            poolId,
+            status = BlockStatus.Confirmed.ToString().ToLower(),
+            paymentstatus = BlockPaymentStatus.Pending.ToString().ToLower(),
+            limit = (int) limit,
+        }, cancellationToken: ct)))
+            .Select(mapper.Map<Block>)
+            .ToArray();
     }
 }

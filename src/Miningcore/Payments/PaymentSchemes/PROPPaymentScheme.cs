@@ -55,12 +55,13 @@ public class PROPPaymentScheme : IPayoutScheme
 
     #region IPayoutScheme
 
-    public async Task UpdateBalancesAsync(IDbConnection con, IDbTransaction tx, IMiningPool pool, IPayoutHandler payoutHandler,
-        Block block, decimal blockReward, CancellationToken ct)
+    public async Task<bool> UpdateBalancesAsync(IDbConnection con, IDbTransaction tx, IMiningPool pool, IPayoutHandler payoutHandler,
+        Block block, CancellationToken ct)
     {
         var poolConfig = pool.Config;
         var shares = new Dictionary<string, double>();
         var rewards = new Dictionary<string, decimal>();
+        var blockReward = await payoutHandler.UpdateBlockRewardBalancesAsync(con, tx, pool, block, ct);
         var shareCutOffDate = await CalculateRewardsAsync(pool, payoutHandler, block, blockReward, shares, rewards, ct);
 
         // update balances
@@ -95,6 +96,8 @@ public class PROPPaymentScheme : IPayoutScheme
 
         if(totalRewards > 0)
             logger.Info(() => $"{FormatUtil.FormatQuantity((double) totalShareCount)} ({Math.Round(totalShareCount, 2)}) shares contributed to a total payout of {payoutHandler.FormatAmount(totalRewards)} ({totalRewards / blockReward * 100:0.00}% of block reward) to {rewards.Keys.Count} addresses");
+
+        return true;
     }
 
     private async Task LogDiscardedSharesAsync(CancellationToken ct, PoolConfig poolConfig, Block block, DateTime value)

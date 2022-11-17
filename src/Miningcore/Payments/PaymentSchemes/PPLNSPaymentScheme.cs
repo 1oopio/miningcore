@@ -51,12 +51,14 @@ public class PPLNSPaymentScheme : IPayoutScheme
     private class Config
     {
         public decimal Factor { get; set; }
+        public uint MergeBalanceChanges { get; set; }
+        public uint MergeBalanceChangesMinBlocks { get; set; }
     }
 
     #region IPayoutScheme
 
-    public async Task UpdateBalancesAsync(IDbConnection con, IDbTransaction tx, IMiningPool pool, IPayoutHandler payoutHandler,
-        Block block, decimal blockReward, CancellationToken ct)
+    public async Task<bool> UpdateBalancesAsync(IDbConnection con, IDbTransaction tx, IMiningPool pool, IPayoutHandler payoutHandler,
+        Block block, CancellationToken ct)
     {
         var poolConfig = pool.Config;
         var payoutConfig = poolConfig.PaymentProcessing.PayoutSchemeConfig;
@@ -64,43 +66,126 @@ public class PPLNSPaymentScheme : IPayoutScheme
         // PPLNS window (see https://bitcointalk.org/index.php?topic=39832)
         var window = payoutConfig?.ToObject<Config>()?.Factor ?? 2.0m;
 
+        var mergeBalanceChanges = payoutConfig?.ToObject<Config>()?.MergeBalanceChanges ?? 0;
+        // the min. amount of pending blocks required to trigger balance change merging
+        var mergeBalanceChangesMinBlocks = payoutConfig?.ToObject<Config>()?.MergeBalanceChangesMinBlocks ?? 0;
+
         // calculate rewards
         var shares = new Dictionary<string, double>();
         var rewards = new Dictionary<string, decimal>();
-        var shareCutOffDate = await CalculateRewardsAsync(pool, payoutHandler, window, block, blockReward, shares, rewards, ct);
 
-        // update balances
-        foreach(var address in rewards.Keys)
+        // process block as usual one by one
+        if(mergeBalanceChanges == 0)
         {
-            var amount = rewards[address];
+            var blockReward = await payoutHandler.UpdateBlockRewardBalancesAsync(con, tx, pool, block, ct);
+            var shareCutOffDate = await CalculateRewardsAsync(pool, payoutHandler, window, block, blockReward, shares, rewards, ct);
 
-            if(amount > 0)
+            // update balances
+            foreach(var address in rewards.Keys)
             {
-                logger.Info(() => $"Crediting {address} with {payoutHandler.FormatAmount(amount)} for {FormatUtil.FormatQuantity(shares[address])} ({shares[address]}) shares for block {block.BlockHeight}");
-                await balanceRepo.AddAmountAsync(con, tx, poolConfig.Id, address, amount, $"Reward for {FormatUtil.FormatQuantity(shares[address])} shares for block {block.BlockHeight}");
+                var amount = rewards[address];
+
+                if(amount > 0)
+                {
+                    logger.Info(() => $"Crediting {address} with {payoutHandler.FormatAmount(amount)} for {FormatUtil.FormatQuantity(shares[address])} ({shares[address]}) shares for block {block.BlockHeight}");
+                    await balanceRepo.AddAmountAsync(con, tx, poolConfig.Id, address, amount, $"Reward for {FormatUtil.FormatQuantity(shares[address])} shares for block {block.BlockHeight}");
+                }
             }
+
+            // delete discarded shares
+            if(shareCutOffDate.HasValue)
+            {
+                var cutOffCount = await shareRepo.CountSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
+
+                if(cutOffCount > 0)
+                {
+                    await LogDiscardedSharesAsync(ct, poolConfig, block, shareCutOffDate.Value);
+
+                    logger.Info(() => $"Deleting {cutOffCount} discarded shares before {shareCutOffDate.Value:O}");
+                    await shareRepo.DeleteSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
+                }
+            }
+
+            // diagnostics
+            var totalShareCount = shares.Values.ToList().Sum(x => new decimal(x));
+            var totalRewards = rewards.Values.ToList().Sum(x => x);
+
+            if(totalRewards > 0)
+                logger.Info(() => $"{FormatUtil.FormatQuantity((double) totalShareCount)} ({Math.Round(totalShareCount, 2)}) shares contributed to a total payout of {payoutHandler.FormatAmount(totalRewards)} ({totalRewards / blockReward * 100:0.00}% of block reward) to {rewards.Keys.Count} addresses");
+
+            return true;
         }
 
-        // delete discarded shares
-        if(shareCutOffDate.HasValue)
+        // if mergeBalanceChanges is set, we calculate the rewards for all blocks in the mergeBalanceChanges window
+        // and the update the balance changes for all blocks in the window at once. 
+        // this should speed up the payout process. 
+        else
         {
-            var cutOffCount = await shareRepo.CountSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
+            var pendingBlocks = await blockRepo.GetPendingBlocksForPoolCountAsync(con, poolConfig.Id, ct);
 
-            if(cutOffCount > 0)
+            // store the current block as confirmed with payment status "pending"
+            block.PaymentStatus = BlockPaymentStatus.Pending;
+            await blockRepo.UpdateBlockAsync(con, tx, block);
+
+            var readyBlocks = await blockRepo.GetPaymentStatusReadyBlocks(con, poolConfig.Id, mergeBalanceChanges, ct);
+            if(readyBlocks == null || (readyBlocks.Length < mergeBalanceChanges && pendingBlocks >= mergeBalanceChangesMinBlocks))
+                return false;
+
+            var totalBlockRewards = 0m;
+
+            logger.Info(() => $"Merging balance changes for blocks {readyBlocks.PrettyPrint()}");
+
+            foreach(var rb in readyBlocks)
             {
-                await LogDiscardedSharesAsync(ct, poolConfig, block, shareCutOffDate.Value);
+                var blockReward = await payoutHandler.UpdateBlockRewardBalancesAsync(con, tx, pool, rb, ct);
+                totalBlockRewards += blockReward;
+                var shareCutOffDate = await CalculateRewardsAsync(pool, payoutHandler, window, rb, blockReward, shares, rewards, ct);
 
-                logger.Info(() => $"Deleting {cutOffCount} discarded shares before {shareCutOffDate.Value:O}");
-                await shareRepo.DeleteSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
+                // delete discarded shares
+                if(shareCutOffDate.HasValue)
+                {
+                    var cutOffCount = await shareRepo.CountSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
+
+                    if(cutOffCount > 0)
+                    {
+                        await LogDiscardedSharesAsync(ct, poolConfig, rb, shareCutOffDate.Value);
+
+                        logger.Info(() => $"Deleting {cutOffCount} discarded shares before {shareCutOffDate.Value:O}");
+                        await shareRepo.DeleteSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
+                    }
+                }
             }
+
+            // update balances for all blocks in the window
+            foreach(var address in rewards.Keys)
+            {
+                var amount = rewards[address];
+
+                if(amount > 0)
+                {
+                    logger.Info(() => $"Crediting {address} with {payoutHandler.FormatAmount(amount)} for {FormatUtil.FormatQuantity(shares[address])} ({shares[address]}) shares for blocks {readyBlocks.PrettyPrint()}");
+                    await balanceRepo.AddAmountAsync(con, tx, poolConfig.Id, address, amount, $"Reward for {FormatUtil.FormatQuantity(shares[address])} shares for blocks {readyBlocks.PrettyPrint()}");
+                }
+            }
+
+            // diagnostics
+            var totalShareCount = shares.Values.ToList().Sum(x => new decimal(x));
+            var totalRewards = rewards.Values.ToList().Sum(x => x);
+
+            if(totalRewards > 0)
+                logger.Info(() => $"{FormatUtil.FormatQuantity((double) totalShareCount)} ({Math.Round(totalShareCount, 2)}) shares contributed to a total payout of {payoutHandler.FormatAmount(totalRewards)} ({totalRewards / totalBlockRewards * 100:0.00}% of block reward) to {rewards.Keys.Count} addresses");
+
+            // update blocks to set payment status to paid
+            foreach(var rb in readyBlocks)
+            {
+                rb.PaymentStatus = BlockPaymentStatus.Paid;
+                await blockRepo.UpdateBlockAsync(con, tx, rb);
+            }
+
+            return false;
         }
 
-        // diagnostics
-        var totalShareCount = shares.Values.ToList().Sum(x => new decimal(x));
-        var totalRewards = rewards.Values.ToList().Sum(x => x);
 
-        if(totalRewards > 0)
-            logger.Info(() => $"{FormatUtil.FormatQuantity((double) totalShareCount)} ({Math.Round(totalShareCount, 2)}) shares contributed to a total payout of {payoutHandler.FormatAmount(totalRewards)} ({totalRewards / blockReward * 100:0.00}% of block reward) to {rewards.Keys.Count} addresses");
     }
 
     private async Task LogDiscardedSharesAsync(CancellationToken ct, PoolConfig poolConfig, Block block, DateTime value)
@@ -151,7 +236,7 @@ public class PPLNSPaymentScheme : IPayoutScheme
 
     #endregion // IPayoutScheme
 
-    private async Task<DateTime?> CalculateRewardsAsync(IMiningPool pool, IPayoutHandler payoutHandler,decimal window, Block block, decimal blockReward,
+    private async Task<DateTime?> CalculateRewardsAsync(IMiningPool pool, IPayoutHandler payoutHandler, decimal window, Block block, decimal blockReward,
         Dictionary<string, double> shares, Dictionary<string, decimal> rewards, CancellationToken ct)
     {
         var poolConfig = pool.Config;

@@ -17,9 +17,9 @@ using Miningcore.Rpc;
 using Miningcore.Time;
 using Miningcore.Util;
 using Newtonsoft.Json;
-using Contract = Miningcore.Contracts.Contract;
-using CNC = Miningcore.Blockchain.Cryptonote.CryptonoteCommands;
 using Newtonsoft.Json.Linq;
+using CNC = Miningcore.Blockchain.Cryptonote.CryptonoteCommands;
+using Contract = Miningcore.Contracts.Contract;
 
 namespace Miningcore.Blockchain.Cryptonote;
 

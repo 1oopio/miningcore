@@ -98,6 +98,7 @@ public class ShareRecorder : BackgroundService
 
                 var blockEntity = mapper.Map<Block>(share);
                 blockEntity.Status = BlockStatus.Pending;
+                blockEntity.PaymentStatus = BlockPaymentStatus.Pending;
                 await blockRepo.InsertAsync(con, tx, blockEntity);
 
                 if(pools.TryGetValue(share.PoolId, out var poolConfig))

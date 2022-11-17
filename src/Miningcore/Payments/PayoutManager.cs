@@ -171,13 +171,21 @@ public class PayoutManager : BackgroundService
                         case BlockStatus.Confirmed:
                             // blockchains that do not support block-reward payments via coinbase Tx
                             // must generate balance records for all reward recipients instead
-                            var blockReward = await handler.UpdateBlockRewardBalancesAsync(con, tx, pool, block, ct);
+                            // var blockReward = await handler.UpdateBlockRewardBalancesAsync(con, tx, pool, block, ct);
 
-                            await scheme.UpdateBalancesAsync(con, tx, pool, handler, block, blockReward, ct);
-                            await blockRepo.UpdateBlockAsync(con, tx, block);
+                            var updateBlock = await scheme.UpdateBalancesAsync(con, tx, pool, handler, block, ct);
+                            if(updateBlock)
+                            {
+                                block.PaymentStatus = BlockPaymentStatus.Paid;
+                                await blockRepo.UpdateBlockAsync(con, tx, block);
+                            }
                             break;
 
                         case BlockStatus.Orphaned:
+                            block.PaymentStatus = BlockPaymentStatus.Orphaned;
+                            await blockRepo.UpdateBlockAsync(con, tx, block);
+                            break;
+
                         case BlockStatus.Pending:
                             await blockRepo.UpdateBlockAsync(con, tx, block);
                             break;

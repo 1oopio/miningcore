@@ -7,6 +7,7 @@ public class Block
     public long BlockHeight { get; set; }
     public double NetworkDifficulty { get; set; }
     public string Status { get; set; }
+    public string PaymentStatus { get; set; }
     public string Type { get; set; }
     public double ConfirmationProgress { get; set; }
     public double? Effort { get; set; }
