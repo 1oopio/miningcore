@@ -78,7 +78,7 @@ public class PPLNSPaymentScheme : IPayoutScheme
         if(mergeBalanceChanges == 0)
         {
             var blockReward = await payoutHandler.UpdateBlockRewardBalancesAsync(con, tx, pool, block, ct);
-            var shareCutOffDate = await CalculateRewardsAsync(pool, payoutHandler, window, block, blockReward, shares, rewards, ct);
+            var shareCutOffDate = await CalculateRewardsAsync(pool, payoutHandler, null, window, block, blockReward, shares, rewards, ct);
 
             // update balances
             foreach(var address in rewards.Keys)
@@ -99,7 +99,7 @@ public class PPLNSPaymentScheme : IPayoutScheme
 
                 if(cutOffCount > 0)
                 {
-                    await LogDiscardedSharesAsync(ct, poolConfig, block, shareCutOffDate.Value);
+                    await LogDiscardedSharesAsync(ct, poolConfig, block.BlockHeight, shareCutOffDate.Value);
 
                     logger.Info(() => $"Deleting {cutOffCount} discarded shares before {shareCutOffDate.Value:O}");
                     await shareRepo.DeleteSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
@@ -135,25 +135,17 @@ public class PPLNSPaymentScheme : IPayoutScheme
 
             logger.Info(() => $"Merging balance changes for blocks {readyBlocks.PrettyPrint()}");
 
+            var first = true;
+            var lastBlockHeight = 0ul;
+            DateTime? shareCutOffDate = null;
+
             foreach(var rb in readyBlocks)
             {
                 var blockReward = await payoutHandler.UpdateBlockRewardBalancesAsync(con, tx, pool, rb, ct);
                 totalBlockRewards += blockReward;
-                var shareCutOffDate = await CalculateRewardsAsync(pool, payoutHandler, window, rb, blockReward, shares, rewards, ct);
-
-                // delete discarded shares
-                if(shareCutOffDate.HasValue)
-                {
-                    var cutOffCount = await shareRepo.CountSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
-
-                    if(cutOffCount > 0)
-                    {
-                        await LogDiscardedSharesAsync(ct, poolConfig, rb, shareCutOffDate.Value);
-
-                        logger.Info(() => $"Deleting {cutOffCount} discarded shares before {shareCutOffDate.Value:O}");
-                        await shareRepo.DeleteSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
-                    }
-                }
+                shareCutOffDate = await CalculateRewardsAsync(pool, payoutHandler, (first ? null : shareCutOffDate), window, rb, blockReward, shares, rewards, ct);
+                first = false;
+                lastBlockHeight = rb.BlockHeight;
             }
 
             // update balances for all blocks in the window
@@ -165,6 +157,20 @@ public class PPLNSPaymentScheme : IPayoutScheme
                 {
                     logger.Info(() => $"Crediting {address} with {payoutHandler.FormatAmount(amount)} for {FormatUtil.FormatQuantity(shares[address])} ({shares[address]}) shares for blocks {readyBlocks.PrettyPrint()}");
                     await balanceRepo.AddAmountAsync(con, tx, poolConfig.Id, address, amount, $"Reward for {FormatUtil.FormatQuantity(shares[address])} shares for blocks {readyBlocks.PrettyPrint()}");
+                }
+            }
+
+            // delete discarded shares
+            if(shareCutOffDate.HasValue)
+            {
+                var cutOffCount = await shareRepo.CountSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
+
+                if(cutOffCount > 0)
+                {
+                    await LogDiscardedSharesAsync(ct, poolConfig, lastBlockHeight, shareCutOffDate.Value);
+
+                    logger.Info(() => $"Deleting {cutOffCount} discarded shares before {shareCutOffDate.Value:O}");
+                    await shareRepo.DeleteSharesBeforeAsync(con, tx, poolConfig.Id, shareCutOffDate.Value, ct);
                 }
             }
 
@@ -188,7 +194,7 @@ public class PPLNSPaymentScheme : IPayoutScheme
 
     }
 
-    private async Task LogDiscardedSharesAsync(CancellationToken ct, PoolConfig poolConfig, Block block, DateTime value)
+    private async Task LogDiscardedSharesAsync(CancellationToken ct, PoolConfig poolConfig, ulong blockHeight, DateTime value)
     {
         var before = value;
         var pageSize = 50000;
@@ -197,7 +203,7 @@ public class PPLNSPaymentScheme : IPayoutScheme
 
         while(true)
         {
-            logger.Info(() => $"Fetching page {currentPage} of discarded shares for pool {poolConfig.Id}, block {block.BlockHeight}");
+            logger.Info(() => $"Fetching page {currentPage} of discarded shares for pool {poolConfig.Id}, block {blockHeight}");
 
             var page = await shareReadFaultPolicy.ExecuteAsync(() =>
                 cf.Run(con => shareRepo.ReadSharesBeforeAsync(con, poolConfig.Id, before, false, pageSize, ct)));
@@ -227,16 +233,16 @@ public class PPLNSPaymentScheme : IPayoutScheme
             // sort addresses by shares
             var addressesByShares = shares.Keys.OrderByDescending(x => shares[x]);
 
-            logger.Info(() => $"{FormatUtil.FormatQuantity(shares.Values.Sum())} ({shares.Values.Sum()}) total discarded shares, block {block.BlockHeight}");
+            logger.Info(() => $"{FormatUtil.FormatQuantity(shares.Values.Sum())} ({shares.Values.Sum()}) total discarded shares, block {blockHeight}");
 
             foreach(var address in addressesByShares)
-                logger.Info(() => $"{address} = {FormatUtil.FormatQuantity(shares[address])} ({shares[address]}) discarded shares, block {block.BlockHeight}");
+                logger.Info(() => $"{address} = {FormatUtil.FormatQuantity(shares[address])} ({shares[address]}) discarded shares, block {blockHeight}");
         }
     }
 
     #endregion // IPayoutScheme
 
-    private async Task<DateTime?> CalculateRewardsAsync(IMiningPool pool, IPayoutHandler payoutHandler, decimal window, Block block, decimal blockReward,
+    private async Task<DateTime?> CalculateRewardsAsync(IMiningPool pool, IPayoutHandler payoutHandler, DateTime? cutoffDate, decimal window, Block block, decimal blockReward,
         Dictionary<string, double> shares, Dictionary<string, decimal> rewards, CancellationToken ct)
     {
         var poolConfig = pool.Config;
@@ -251,10 +257,19 @@ public class PPLNSPaymentScheme : IPayoutScheme
 
         while(!done && !ct.IsCancellationRequested)
         {
-            logger.Info(() => $"Fetching page {currentPage} of shares for pool {poolConfig.Id}, block {block.BlockHeight}");
-
-            var page = await shareReadFaultPolicy.ExecuteAsync(() =>
-                cf.Run(con => shareRepo.ReadSharesBeforeAsync(con, poolConfig.Id, before, inclusive, pageSize, ct))); //, sw, logger));
+            Share[] page;
+            if(!cutoffDate.HasValue)
+            {
+                logger.Info(() => $"Fetching page {currentPage} of shares for pool {poolConfig.Id}, block {block.BlockHeight}, before {before:O}");
+                page = await shareReadFaultPolicy.ExecuteAsync(() =>
+                   cf.Run(con => shareRepo.ReadSharesBeforeAsync(con, poolConfig.Id, before, inclusive, pageSize, ct))); //, sw, logger));
+            }
+            else
+            {
+                logger.Info(() => $"Fetching page {currentPage} of shares for pool {poolConfig.Id}, block {block.BlockHeight}, after {cutoffDate.Value:O}, before {before:O}");
+                page = await shareReadFaultPolicy.ExecuteAsync(() =>
+                    cf.Run(con => shareRepo.ReadSharesBetweenAsync(con, poolConfig.Id, cutoffDate.Value, before, inclusive, pageSize, ct))); //, sw, logger));
+            }
 
             inclusive = false;
             currentPage++;

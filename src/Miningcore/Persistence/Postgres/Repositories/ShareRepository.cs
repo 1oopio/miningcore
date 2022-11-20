@@ -53,10 +53,29 @@ public class ShareRepository : IShareRepository
     public async Task<Share[]> ReadSharesBeforeAsync(IDbConnection con, string poolId, DateTime before,
         bool inclusive, int pageSize, CancellationToken ct)
     {
-        var query = @$"SELECT * FROM shares WHERE poolid = @poolId AND created {(inclusive ? " <= " : " < ")} @before
+        var query = @$"
+            SELECT * FROM shares 
+            WHERE 
+                poolid = @poolId AND 
+                created {(inclusive ? " <= " : " < ")} @before
             ORDER BY created DESC FETCH NEXT @pageSize ROWS ONLY";
 
         return (await con.QueryAsync<Entities.Share>(new CommandDefinition(query, new { poolId, before, pageSize }, cancellationToken: ct)))
+            .Select(mapper.Map<Share>)
+            .ToArray();
+    }
+
+    public async Task<Share[]> ReadSharesBetweenAsync(IDbConnection con, string poolId, DateTime after, DateTime before, bool inclusive, int pageSize, CancellationToken ct)
+    {
+        var query = @$"
+            SELECT * FROM shares 
+            WHERE 
+                poolid = @poolId AND 
+                created {(inclusive ? " <= " : " < ")} @before AND
+                created >= @after
+            ORDER BY created DESC FETCH NEXT @pageSize ROWS ONLY";
+
+        return (await con.QueryAsync<Entities.Share>(new CommandDefinition(query, new { poolId, before, after, pageSize }, cancellationToken: ct)))
             .Select(mapper.Map<Share>)
             .ToArray();
     }
@@ -72,14 +91,14 @@ public class ShareRepository : IShareRepository
     {
         const string query = "SELECT count(*) FROM shares WHERE poolid = @poolId AND miner = @miner";
 
-        return con.QuerySingleAsync<long>(new CommandDefinition(query, new { poolId, miner}, tx, cancellationToken: ct));
+        return con.QuerySingleAsync<long>(new CommandDefinition(query, new { poolId, miner }, tx, cancellationToken: ct));
     }
 
     public async Task DeleteSharesByMinerAsync(IDbConnection con, IDbTransaction tx, string poolId, string miner, CancellationToken ct)
     {
         const string query = "DELETE FROM shares WHERE poolid = @poolId AND miner = @miner";
 
-        await con.ExecuteAsync(new CommandDefinition(query, new { poolId, miner}, tx, cancellationToken: ct));
+        await con.ExecuteAsync(new CommandDefinition(query, new { poolId, miner }, tx, cancellationToken: ct));
     }
 
     public async Task DeleteSharesBeforeAsync(IDbConnection con, IDbTransaction tx, string poolId, DateTime before, CancellationToken ct)
