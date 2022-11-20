@@ -400,7 +400,9 @@ public class DeroPayoutHandler : PayoutHandlerBase,
         if(minBlockHeightFailure)
         {
             var maxBlockHeight = blocks.Max(x => x.BlockHeight);
-            messageBus.SendMessage(new AdminNotification("Classify blocks failed", $"Pool {poolConfig.Id} Either node or wallet has not catched up got {minBlockHeight}, highest block to check: {maxBlockHeight}"));
+            // only send a message if the difference is more than 1 block to avoid spamming
+            if((maxBlockHeight - minBlockHeight) > 1)
+                messageBus.SendMessage(new AdminNotification("Classify blocks failed", $"Pool {poolConfig.Id} Either node or wallet has not catched up got {minBlockHeight}, highest block to check: {maxBlockHeight}"));
         }
 
         return result.ToArray();
