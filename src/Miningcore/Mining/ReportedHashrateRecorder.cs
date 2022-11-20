@@ -92,11 +92,15 @@ public class ReportedHashrateRecorder : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
+        logger.Info(() => "Online");
+
         var reportedHashrateEvents = messageBus.Listen<StratumReportedHashrate>()
             .ObserveOn(TaskPoolScheduler.Default)
             .Do(async msg => await Guard(async () => await (OnMinerWorkerReportedHashrate(msg.ReportedHashrate, ct)), ex => logger.Error(ex.Message)))
             .Select(_ => Unit.Default);
 
         await reportedHashrateEvents.ToTask(ct);
+
+        logger.Info(() => "Offline");
     }
 }
