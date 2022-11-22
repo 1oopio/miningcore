@@ -22,7 +22,7 @@ using static Miningcore.Util.ActionUtils;
 
 namespace Miningcore.Mining;
 
-public record StratumReportedHashrate(StratumConnection Connection, ReportedHashrate ReportedHashrate);
+public record StratumReportedHashrate(StratumConnection Connection, Miningcore.Blockchain.ReportedHashrate ReportedHashrate);
 
 public class ReportedHashrateRecorder : BackgroundService
 {
@@ -70,21 +70,20 @@ public class ReportedHashrateRecorder : BackgroundService
         logger.Warn(() => $"Retry {retry} due to {ex.Source}: {ex.GetType().Name} ({ex.Message})");
     }
 
-    private async Task OnMinerWorkerReportedHashrate(ReportedHashrate hashrate, CancellationToken ct)
+    private async Task OnMinerWorkerReportedHashrate(Miningcore.Blockchain.ReportedHashrate hashrate, CancellationToken ct)
     {
-        var stats = new MinerWorkerPerformanceStats
+        var stats = new Miningcore.Persistence.Model.ReportedHashrate
         {
             Created = clock.Now,
             PoolId = hashrate.PoolId,
             Miner = hashrate.Miner,
             Worker = hashrate.Worker,
             Hashrate = hashrate.Hashrate,
-            HashrateType = "reported"
         };
 
         // persist
         await cf.RunTx(async (con, tx) =>
-            await statsRepo.InsertMinerWorkerPerformanceStatsAsync(con, tx, stats, ct)
+            await statsRepo.InsertReportedHashrateAsync(con, tx, stats, ct)
         );
 
         logger.Info(() => $"[{stats.PoolId}] Worker {stats.Miner}{(!string.IsNullOrEmpty(stats.Worker) ? $".{stats.Worker}" : string.Empty)}: Reported: {FormatUtil.FormatHashrate(stats.Hashrate)}");
