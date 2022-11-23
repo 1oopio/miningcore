@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Numerics;
+using System.Reactive;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Text;
@@ -12,19 +13,18 @@ using Miningcore.Crypto.Hashing.Ethash;
 using Miningcore.Extensions;
 using Miningcore.JsonRpc;
 using Miningcore.Messaging;
+using Miningcore.Mining;
 using Miningcore.Notifications.Messages;
+using Miningcore.Rpc;
 using Miningcore.Stratum;
 using Miningcore.Time;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NLog;
+using static Miningcore.Util.ActionUtils;
 using Block = Miningcore.Blockchain.Ethereum.DaemonResponses.Block;
 using Contract = Miningcore.Contracts.Contract;
 using EC = Miningcore.Blockchain.Ethereum.EthCommands;
-using static Miningcore.Util.ActionUtils;
-using System.Reactive;
-using Miningcore.Mining;
-using Miningcore.Rpc;
-using Newtonsoft.Json.Linq;
 
 namespace Miningcore.Blockchain.Ethereum;
 
@@ -353,8 +353,16 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
             // create it if necessary
             Directory.CreateDirectory(dagDir);
 
+            ulong epochLength;
+            if(extraPoolConfig?.ChainTypeOverride == "EthereumClassic")
+                epochLength = EthereumClassicConstants.EpochLength;
+            else
+                epochLength = EthereumConstants.EpochLength;
+
+            logger.Info(() => $"DAG epoch length set to {epochLength}");
+
             // setup ethash
-            ethash = new EthashFull(3, dagDir);
+            ethash = new EthashFull(3, dagDir, epochLength);
         }
     }
 
@@ -546,8 +554,8 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
         // Periodically update network stats
         Observable.Interval(TimeSpan.FromMinutes(10))
             .Select(via => Observable.FromAsync(() =>
-                Guard(()=> UpdateNetworkStatsAsync(ct),
-                    ex=> logger.Error(ex))))
+                Guard(() => UpdateNetworkStatsAsync(ct),
+                    ex => logger.Error(ex))))
             .Concat()
             .Subscribe();
 
@@ -591,7 +599,7 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
 
         var endpointExtra = daemonEndpoints
             .Where(x => x.Extra.SafeExtensionDataAs<EthereumDaemonEndpointConfigExtra>() != null)
-            .Select(x=> Tuple.Create(x, x.Extra.SafeExtensionDataAs<EthereumDaemonEndpointConfigExtra>()))
+            .Select(x => Tuple.Create(x, x.Extra.SafeExtensionDataAs<EthereumDaemonEndpointConfigExtra>()))
             .FirstOrDefault();
 
         if(endpointExtra?.Item2?.PortWs.HasValue == true)

@@ -29,7 +29,7 @@ public class Cache : IDisposable
         }
     }
 
-    public async Task GenerateAsync(ILogger logger)
+    public async Task GenerateAsync(ILogger logger, ulong epochLength)
     {
         await Task.Run(() =>
         {
@@ -40,8 +40,8 @@ public class Cache : IDisposable
                     var started = DateTime.Now;
                     logger.Debug(() => $"Generating cache for epoch {Epoch}");
 
-                    var block = Epoch * EthereumConstants.EpochLength;
-                    handle = EthHash.ethash_light_new(block);
+                    var block = Epoch * epochLength;
+                    handle = EthHash.ethash_light_new(block, epochLength);
 
                     logger.Debug(() => $"Done generating cache for epoch {Epoch} after {DateTime.Now - started}");
                     isGenerated = true;
@@ -59,7 +59,7 @@ public class Cache : IDisposable
 
         var value = new EthHash.ethash_return_value();
 
-        fixed (byte* input = hash)
+        fixed(byte* input = hash)
         {
             EthHash.ethash_light_compute(handle, input, nonce, ref value);
         }

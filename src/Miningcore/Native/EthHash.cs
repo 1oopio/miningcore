@@ -27,9 +27,10 @@ public static unsafe class EthHash
     /// Allocate and initialize a new ethash_light handler
     /// </summary>
     /// <param name="block_number">The block number for which to create the handler</param>
+    /// <param name="epoch_length">The epoch length</param>
     /// <returns>Newly allocated ethash_light handler or NULL</returns>
     [DllImport("libethhash", EntryPoint = "ethash_light_new_export", CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr ethash_light_new(ulong block_number);
+    public static extern IntPtr ethash_light_new(ulong block_number, ulong epoch_length);
 
     /// <summary>
     /// Frees a previously allocated ethash_light handler
@@ -54,6 +55,7 @@ public static unsafe class EthHash
     /// <param name="dagDir">Directory where generated DAGs reside</param>
     /// <param name="light">The light handler containing the cache.</param>
     /// <param name="callback">
+    /// <param name="epoch_length">The epoch length</param>
     /// A callback function with signature of @ref ethash_callback_t
     /// It accepts an unsigned with which a progress of DAG calculation
     /// can be displayed. If all goes well the callback should return 0.
@@ -64,7 +66,7 @@ public static unsafe class EthHash
     /// </param>
     /// <returns></returns>
     [DllImport("libethhash", EntryPoint = "ethash_full_new_export", CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr ethash_full_new(string dagDir, IntPtr light, ethash_callback_t callback);
+    public static extern IntPtr ethash_full_new(string dagDir, IntPtr light, ethash_callback_t callback, ulong epoch_length);
 
     /// <summary>
     /// Frees a previously allocated ethash_full handler
@@ -101,8 +103,9 @@ public static unsafe class EthHash
     /// Calculate the seedhash for a given block number
     /// </summary>
     /// <param name="handle">The full handler to free</param>
+    /// <param name="epoch_length">The epoch length</param>
     [DllImport("libethhash", EntryPoint = "ethash_get_seedhash_export", CallingConvention = CallingConvention.Cdecl)]
-    public static extern ethash_h256_t ethash_get_seedhash(ulong block_number);
+    public static extern ethash_h256_t ethash_get_seedhash(ulong block_number, ulong epoch_length);
 
     /// <summary>
     /// Get the default DAG directory

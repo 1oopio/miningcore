@@ -12,12 +12,14 @@ namespace Miningcore.Crypto.Hashing.Ethash;
 
 public class Dag : IDisposable
 {
-    public Dag(ulong epoch)
+    public Dag(ulong epoch, ulong epochLength)
     {
         Epoch = epoch;
+        EpochLength = epochLength;
     }
 
     public ulong Epoch { get; set; }
+    public ulong EpochLength { get; set; }
 
     private IntPtr handle = IntPtr.Zero;
     private static readonly Semaphore sem = new(1, 1);
@@ -30,9 +32,9 @@ public class Dag : IDisposable
     {
         var chars = new byte[512];
 
-        fixed (byte* data = chars)
+        fixed(byte* data = chars)
         {
-            if(EthHash.ethash_get_default_dirname(data, chars.Length))
+            if(EthHash.ethash_get_default_dirname(data, chars.Length)) // DONE
             {
                 int length;
                 for(length = 0; length < chars.Length; length++)
@@ -52,7 +54,7 @@ public class Dag : IDisposable
     {
         if(handle != IntPtr.Zero)
         {
-            EthHash.ethash_full_delete(handle);
+            EthHash.ethash_full_delete(handle); // DONE
             handle = IntPtr.Zero;
         }
     }
@@ -76,10 +78,10 @@ public class Dag : IDisposable
                     logger.Info(() => $"Generating DAG for epoch {Epoch}");
 
                     var started = DateTime.Now;
-                    var block = Epoch * EthereumConstants.EpochLength;
+                    var block = Epoch * EpochLength;
 
                     // Generate a temporary cache
-                    var light = EthHash.ethash_light_new(block);
+                    var light = EthHash.ethash_light_new(block, EpochLength);
 
                     try
                     {
@@ -89,7 +91,7 @@ public class Dag : IDisposable
                             logger.Info(() => $"Generating DAG for epoch {Epoch}: {progress}%");
 
                             return !ct.IsCancellationRequested ? 0 : 1;
-                        });
+                        }, EpochLength);
 
                         if(handle == IntPtr.Zero)
                             throw new OutOfMemoryException("ethash_full_new IO or memory error");
@@ -123,7 +125,7 @@ public class Dag : IDisposable
 
         var value = new EthHash.ethash_return_value();
 
-        fixed (byte* input = hash)
+        fixed(byte* input = hash)
         {
             EthHash.ethash_full_compute(handle, input, nonce, ref value);
         }

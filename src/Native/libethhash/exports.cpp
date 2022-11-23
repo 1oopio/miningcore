@@ -19,7 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "internal.h"
 #include "ethash.h"
 
-extern "C" bool ethash_get_default_dirname(char* strbuf, size_t buffsize);
+extern "C" bool ethash_get_default_dirname(char *strbuf, size_t buffsize);
 
 #ifdef _WIN32
 #define MODULE_API __declspec(dllexport)
@@ -27,19 +27,19 @@ extern "C" bool ethash_get_default_dirname(char* strbuf, size_t buffsize);
 #define MODULE_API
 #endif
 
-extern "C" MODULE_API uint64_t ethash_get_datasize_export(uint64_t const block_number)
+extern "C" MODULE_API uint64_t ethash_get_datasize_export(uint64_t const block_number, uint64_t epoch_length)
 {
-	return ethash_get_datasize(block_number);
+	return ethash_get_datasize(block_number, epoch_length);
 }
 
-extern "C" MODULE_API uint64_t ethash_get_cachesize_export(uint64_t const block_number)
+extern "C" MODULE_API uint64_t ethash_get_cachesize_export(uint64_t const block_number, uint64_t epoch_length)
 {
-	return ethash_get_cachesize(block_number);
+	return ethash_get_cachesize(block_number, epoch_length);
 }
 
-extern "C" MODULE_API ethash_light_t ethash_light_new_export(uint64_t block_number)
+extern "C" MODULE_API ethash_light_t ethash_light_new_export(uint64_t block_number, uint64_t epoch_length)
 {
-	return ethash_light_new(block_number);
+	return ethash_light_new(block_number, epoch_length);
 }
 
 extern "C" MODULE_API void ethash_light_delete_export(ethash_light_t light)
@@ -56,10 +56,10 @@ extern "C" MODULE_API void ethash_light_compute_export(
 	*result = ethash_light_compute(light, *header_hash, nonce);
 }
 
-extern "C" MODULE_API ethash_full_t ethash_full_new_export(const char *dirname, ethash_light_t light, ethash_callback_t callback)
+extern "C" MODULE_API ethash_full_t ethash_full_new_export(const char *dirname, ethash_light_t light, ethash_callback_t callback, uint64_t epoch_length)
 {
-	uint64_t full_size = ethash_get_datasize(light->block_number);
-	ethash_h256_t seedhash = ethash_get_seedhash(light->block_number);
+	uint64_t full_size = ethash_get_datasize(light->block_number, epoch_length);
+	ethash_h256_t seedhash = ethash_get_seedhash(light->block_number, epoch_length);
 	return ethash_full_new_internal(dirname, seedhash, full_size, light, callback);
 }
 
@@ -77,7 +77,7 @@ extern "C" MODULE_API void ethash_full_compute_export(
 	*result = ethash_full_compute(full, *header_hash, nonce);
 }
 
-extern "C" MODULE_API void const* ethash_full_dag_export(ethash_full_t full)
+extern "C" MODULE_API void const *ethash_full_dag_export(ethash_full_t full)
 {
 	return ethash_full_dag(full);
 }
@@ -87,9 +87,9 @@ extern "C" MODULE_API uint64_t ethash_full_dag_size_export(ethash_full_t full)
 	return ethash_full_dag_size(full);
 }
 
-extern "C" MODULE_API ethash_h256_t ethash_get_seedhash_export(uint64_t block_number)
+extern "C" MODULE_API ethash_h256_t ethash_get_seedhash_export(uint64_t block_number, uint64_t epoch_length)
 {
-	return ethash_get_seedhash(block_number);
+	return ethash_get_seedhash(block_number, epoch_length);
 }
 
 extern "C" MODULE_API bool ethash_get_default_dirname_export(char *buf, size_t buf_size)

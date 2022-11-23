@@ -6,12 +6,13 @@ namespace Miningcore.Crypto.Hashing.Ethash;
 
 public class EthashFull : IDisposable
 {
-    public EthashFull(int numCaches, string dagDir)
+    public EthashFull(int numCaches, string dagDir, ulong epochLength)
     {
         Contract.Requires<ArgumentException>(!string.IsNullOrEmpty(dagDir));
 
         this.numCaches = numCaches;
         this.dagDir = dagDir;
+        this.epochLength = epochLength;
     }
 
     private int numCaches; // Maximum number of caches to keep before eviction (only init, don't modify)
@@ -19,6 +20,7 @@ public class EthashFull : IDisposable
     private readonly Dictionary<ulong, Dag> caches = new();
     private Dag future;
     private readonly string dagDir;
+    private readonly ulong epochLength;
 
     public void Dispose()
     {
@@ -28,7 +30,7 @@ public class EthashFull : IDisposable
 
     public async Task<Dag> GetDagAsync(ulong block, ILogger logger, CancellationToken ct)
     {
-        var epoch = block / EthereumConstants.EpochLength;
+        var epoch = block / epochLength;
         Dag result;
 
         lock(cacheLock)
@@ -62,7 +64,7 @@ public class EthashFull : IDisposable
                 else
                 {
                     logger.Info(() => $"No pre-generated DAG available, creating new for epoch {epoch}");
-                    result = new Dag(epoch);
+                    result = new Dag(epoch, epochLength);
                 }
 
                 caches[epoch] = result;
@@ -72,7 +74,7 @@ public class EthashFull : IDisposable
             else if(future == null || future.Epoch <= epoch)
             {
                 logger.Info(() => $"Pre-generating DAG for epoch {epoch + 1}");
-                future = new Dag(epoch + 1);
+                future = new Dag(epoch + 1, epochLength);
 
 #pragma warning disable 4014
                 future.GenerateAsync(dagDir, logger, ct);
