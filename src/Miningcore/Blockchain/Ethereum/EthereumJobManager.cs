@@ -393,6 +393,11 @@ public class EthereumJobManager : JobManagerBase<EthereumJob>
         var nonce = request[0];
         var header = request[1];
 
+        var hexDiff = request[2];
+        logger.Info(() => $"hexDiff:  {hexDiff}");
+        /*  var diff = ulong.Parse(hexDiff.StripHexPrefix(), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+         logger.Info(() => $"diff:  {diff}"); */
+
         EthereumJob job;
 
         // stale?

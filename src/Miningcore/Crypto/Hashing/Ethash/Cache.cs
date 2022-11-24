@@ -18,6 +18,7 @@ public class Cache : IDisposable
     private readonly object genLock = new();
 
     public ulong Epoch { get; }
+    public ulong EpochLength { get; set; }
     public DateTime LastUsed { get; set; }
 
     public void Dispose()
@@ -31,6 +32,7 @@ public class Cache : IDisposable
 
     public async Task GenerateAsync(ILogger logger, ulong epochLength)
     {
+        this.EpochLength = epochLength;
         await Task.Run(() =>
         {
             lock(genLock)
@@ -61,7 +63,7 @@ public class Cache : IDisposable
 
         fixed(byte* input = hash)
         {
-            EthHash.ethash_light_compute(handle, input, nonce, ref value);
+            EthHash.ethash_light_compute(handle, input, nonce, EpochLength, ref value);
         }
 
         if(value.success)

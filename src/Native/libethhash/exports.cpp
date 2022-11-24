@@ -51,9 +51,10 @@ extern "C" MODULE_API void ethash_light_compute_export(
 	ethash_light_t light,
 	ethash_h256_t const *header_hash,
 	uint64_t nonce,
-	ethash_return_value_t *result)
+	ethash_return_value_t *result,
+	uint64_t epoch_length)
 {
-	*result = ethash_light_compute(light, *header_hash, nonce);
+	*result = ethash_light_compute(light, *header_hash, nonce, epoch_length);
 }
 
 extern "C" MODULE_API ethash_full_t ethash_full_new_export(const char *dirname, ethash_light_t light, ethash_callback_t callback, uint64_t epoch_length)

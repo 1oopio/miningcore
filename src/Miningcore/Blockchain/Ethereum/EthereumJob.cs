@@ -61,7 +61,6 @@ public class EthereumJob
         }
 
         var context = worker.ContextAs<EthereumWorkerContext>();
-
         if(!ulong.TryParse(fullNonceHex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var fullNonce))
             throw new StratumException(StratumError.MinusOne, "bad nonce " + fullNonceHex);
 
@@ -77,9 +76,17 @@ public class EthereumJob
         var resultValue = new uint256(resultBytes);
         var resultValueBig = resultBytes.AsSpan().ToBigInteger();
         var shareDiff = (double) BigInteger.Divide(EthereumConstants.BigMaxValue, resultValueBig) / EthereumConstants.Pow2x32;
+        shareDiff *= 1000000000;
         var stratumDifficulty = context.Difficulty;
         var ratio = shareDiff / stratumDifficulty;
         var isBlockCandidate = resultValue <= blockTarget;
+
+        logger.Info(() => $"resultValue: {resultValue}");
+        logger.Info(() => $"resultValueBig: {resultValueBig}");
+        logger.Info(() => $"shareDiff: {shareDiff}");
+        logger.Info(() => $"stratumDifficulty: {stratumDifficulty}");
+        logger.Info(() => $"ratio: {ratio}");
+        logger.Info(() => $"blockTarget: {blockTarget}");
 
         if(!isBlockCandidate && ratio < 0.99)
         {

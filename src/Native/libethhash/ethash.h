@@ -102,7 +102,8 @@ extern "C"
   ethash_return_value_t ethash_light_compute(
       ethash_light_t light,
       ethash_h256_t const header_hash,
-      uint64_t nonce);
+      uint64_t nonce,
+      uint64_t epoch_length);
 
   /**
    * Allocate and initialize a new ethash_full handler

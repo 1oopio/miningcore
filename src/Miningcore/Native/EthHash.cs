@@ -45,9 +45,10 @@ public static unsafe class EthHash
     /// <param name="handle">The light client handler</param>
     /// <param name="header_hash">The 32-Byte header hash to pack into the mix</param>
     /// <param name="nonce">The nonce to pack into the mix</param>
+    /// <param name="epoch_length">The epoch length</param>
     /// <returns>an object of ethash_return_value_t holding the return values</returns>
     [DllImport("libethhash", EntryPoint = "ethash_light_compute_export", CallingConvention = CallingConvention.Cdecl)]
-    public static extern void ethash_light_compute(IntPtr handle, byte* header_hash, ulong nonce, ref ethash_return_value result);
+    public static extern void ethash_light_compute(IntPtr handle, byte* header_hash, ulong nonce, ulong epoch_length, ref ethash_return_value result);
 
     /// <summary>
     /// Allocate and initialize a new ethash_full handler
