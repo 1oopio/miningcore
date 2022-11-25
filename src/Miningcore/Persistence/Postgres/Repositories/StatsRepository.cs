@@ -48,19 +48,6 @@ public class StatsRepository : IStatsRepository
         await con.ExecuteAsync(new CommandDefinition(query, mapped, tx, cancellationToken: ct));
     }
 
-    public async Task InsertReportedHashrateAsync(IDbConnection con, IDbTransaction tx, ReportedHashrate stats, CancellationToken ct)
-    {
-        var mapped = mapper.Map<Entities.ReportedHashrate>(stats);
-
-        if(string.IsNullOrEmpty(mapped.Worker))
-            mapped.Worker = string.Empty;
-
-        const string query = @"INSERT INTO reported_hashrate(poolid, miner, worker, hashrate, created)
-            VALUES(@poolid, @miner, @worker, @hashrate, @created)";
-
-        await con.ExecuteAsync(new CommandDefinition(query, mapped, tx, cancellationToken: ct));
-    }
-
     public async Task BatchInsertReportedHashrateAsync(IDbConnection con, IDbTransaction tx, IEnumerable<ReportedHashrate> stats, CancellationToken ct)
     {
         // NOTE: Even though the tx parameter is completely ignored here,
