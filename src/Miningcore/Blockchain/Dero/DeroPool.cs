@@ -5,9 +5,11 @@ using System.Reactive.Threading.Tasks;
 using Autofac;
 using AutoMapper;
 using Microsoft.IO;
+using Miningcore.Blockchain.Dero.Configuration;
 using Miningcore.Blockchain.Dero.StratumRequests;
 using Miningcore.Blockchain.Dero.StratumResponses;
 using Miningcore.Configuration;
+using Miningcore.Extensions;
 using Miningcore.JsonRpc;
 using Miningcore.Messaging;
 using Miningcore.Mining;
@@ -41,6 +43,8 @@ public class DeroPool : PoolBase
     private long currentJobId;
 
     private DeroJobManager manager;
+    private DeroPoolConfigExtra extraPoolConfig;
+    private int maxActiveJobs = 12;
 
     private async Task OnLoginAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
@@ -299,6 +303,15 @@ public class DeroPool : PoolBase
 
     #region Overrides
 
+    public override void Configure(PoolConfig pc, ClusterConfig cc)
+    {
+        extraPoolConfig = pc.Extra.SafeExtensionDataAs<DeroPoolConfigExtra>();
+
+        maxActiveJobs = extraPoolConfig?.MaxActiveJobs ?? maxActiveJobs;
+
+        base.Configure(pc, cc);
+    }
+
     protected override async Task SetupJobManager(CancellationToken ct)
     {
         manager = ctx.Resolve<DeroJobManager>();
@@ -338,7 +351,7 @@ public class DeroPool : PoolBase
 
     protected override WorkerContextBase CreateWorkerContext()
     {
-        return new DeroWorkerContext();
+        return new DeroWorkerContext(maxActiveJobs);
     }
 
     protected override async Task OnRequestAsync(StratumConnection connection,
