@@ -4,6 +4,16 @@ namespace Miningcore.Blockchain.Dero;
 
 public class DeroWorkerContext : WorkerContextBase
 {
+    public DeroWorkerContext(int maxJobCount)
+    {
+        this.maxJobCount = maxJobCount;
+    }
+
+    /// <summary>
+    /// Maximum number of tracked jobs.
+    /// </summary>
+    private readonly int maxJobCount;
+
     /// <summary>
     /// Usually a wallet address
     /// NOTE: May include paymentid (seperated by a dot .)
@@ -21,7 +31,7 @@ public class DeroWorkerContext : WorkerContextBase
     {
         validJobs.Insert(0, job);
 
-        while(validJobs.Count > 8)
+        while(validJobs.Count > maxJobCount)
             validJobs.RemoveAt(validJobs.Count - 1);
     }
 
