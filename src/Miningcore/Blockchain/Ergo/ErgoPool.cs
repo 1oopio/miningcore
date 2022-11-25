@@ -251,7 +251,8 @@ public class ErgoPool : PoolBase
                 PoolId = poolConfig.Id,
                 Miner = context.Miner,
                 Worker = context.Worker,
-                Hashrate = hashrateRequest.Hashrate
+                Hashrate = hashrateRequest.Hashrate,
+                Created = clock.Now
             };
 
             logger.Info(() => $"[{reported.PoolId}] Worker {reported.Miner}{(!string.IsNullOrEmpty(reported.Worker) ? $".{reported.Worker}" : string.Empty)}: Reported: {FormatUtil.FormatHashrate(reported.Hashrate)}");
