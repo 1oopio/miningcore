@@ -19,7 +19,9 @@ using Miningcore.Persistence;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Stratum;
 using Miningcore.Time;
+using Miningcore.Util;
 using Newtonsoft.Json;
+using NLog;
 using static Miningcore.Util.ActionUtils;
 
 namespace Miningcore.Blockchain.Dero;
@@ -197,8 +199,12 @@ public class DeroPool : PoolBase
                 PoolId = poolConfig.Id,
                 Miner = context.Miner,
                 Worker = context.Worker,
-                Hashrate = hashrateRequest.Hashrate
+                Hashrate = hashrateRequest.Hashrate,
+                Created = clock.Now
             };
+
+            logger.Info(() => $"[{reported.PoolId}] Worker {reported.Miner}{(!string.IsNullOrEmpty(reported.Worker) ? $".{reported.Worker}" : string.Empty)}: Reported: {FormatUtil.FormatHashrate(reported.Hashrate)}");
+
             messageBus.SendMessage(new StratumReportedHashrate(connection, reported));
         }
     }

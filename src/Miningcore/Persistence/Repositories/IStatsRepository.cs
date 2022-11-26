@@ -9,7 +9,7 @@ public interface IStatsRepository
 {
     Task InsertPoolStatsAsync(IDbConnection con, IDbTransaction tx, PoolStats stats, CancellationToken ct);
     Task InsertMinerWorkerStatsAsync(IDbConnection con, IDbTransaction tx, MinerWorkerStats stats, CancellationToken ct);
-    Task InsertReportedHashrateAsync(IDbConnection con, IDbTransaction tx, ReportedHashrate stats, CancellationToken ct);
+    Task BatchInsertReportedHashrateAsync(IDbConnection con, IDbTransaction tx, IEnumerable<ReportedHashrate> stats, CancellationToken ct);
     Task<PoolStats> GetLastPoolStatsAsync(IDbConnection con, string poolId, CancellationToken ct);
     Task<decimal> GetTotalPoolPaymentsAsync(IDbConnection con, string poolId, CancellationToken ct);
     Task<PoolStats[]> GetPoolPerformanceBetweenAsync(IDbConnection con, string poolId, SampleInterval interval, DateTime start, DateTime end, CancellationToken ct);

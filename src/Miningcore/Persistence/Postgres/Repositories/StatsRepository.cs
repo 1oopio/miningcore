@@ -5,6 +5,8 @@ using Miningcore.Persistence.Model;
 using Miningcore.Persistence.Model.Projections;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Time;
+using Npgsql;
+using NpgsqlTypes;
 using MinerStats = Miningcore.Persistence.Model.Projections.MinerStats;
 
 namespace Miningcore.Persistence.Postgres.Repositories;
@@ -46,17 +48,38 @@ public class StatsRepository : IStatsRepository
         await con.ExecuteAsync(new CommandDefinition(query, mapped, tx, cancellationToken: ct));
     }
 
-    public async Task InsertReportedHashrateAsync(IDbConnection con, IDbTransaction tx, ReportedHashrate stats, CancellationToken ct)
+    public async Task BatchInsertReportedHashrateAsync(IDbConnection con, IDbTransaction tx, IEnumerable<ReportedHashrate> stats, CancellationToken ct)
     {
-        var mapped = mapper.Map<Entities.ReportedHashrate>(stats);
+        // NOTE: Even though the tx parameter is completely ignored here,
+        // the COPY command still honors a current ambient transaction
 
-        if(string.IsNullOrEmpty(mapped.Worker))
-            mapped.Worker = string.Empty;
+        var pgCon = (NpgsqlConnection) con;
 
-        const string query = @"INSERT INTO reported_hashrate(poolid, miner, worker, hashrate, created)
-            VALUES(@poolid, @miner, @worker, @hashrate, @created)";
+        const string query = @"COPY reported_hashrate(
+            poolid, miner, worker, hashrate, created)
+            FROM STDIN (FORMAT BINARY)";
 
-        await con.ExecuteAsync(new CommandDefinition(query, mapped, tx, cancellationToken: ct));
+        await using(var writer = await pgCon.BeginBinaryImportAsync(query, ct))
+        {
+            foreach(var stat in stats)
+            {
+                var mapped = mapper.Map<Entities.ReportedHashrate>(stat);
+
+                if(string.IsNullOrEmpty(mapped.Worker))
+                    mapped.Worker = string.Empty;
+
+                await writer.StartRowAsync(ct);
+
+                await writer.WriteAsync(mapped.PoolId, NpgsqlDbType.Text, ct);
+                await writer.WriteAsync(mapped.Miner, NpgsqlDbType.Text, ct);
+                await writer.WriteAsync(mapped.Worker, NpgsqlDbType.Text, ct);
+                await writer.WriteAsync(mapped.Hashrate, NpgsqlDbType.Double, ct);
+                await writer.WriteAsync(mapped.Created, NpgsqlDbType.TimestampTz, ct);
+            }
+
+            await writer.CompleteAsync(ct);
+        }
+
     }
 
     public async Task<PoolStats> GetLastPoolStatsAsync(IDbConnection con, string poolId, CancellationToken ct)
