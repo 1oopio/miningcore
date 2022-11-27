@@ -647,6 +647,11 @@ public class TcpProxyProtocolConfig
     /// List of IP addresses of valid proxy addresses. If absent, localhost is used
     /// </summary>
     public string[] ProxyAddresses { get; set; }
+
+    /// <summary>
+    /// Accepts proxy protocol from all addresses
+    /// </summary>
+    public bool AcceptProxyProtocolFromAll { get; set; }
 }
 
 public class PoolEndpoint

@@ -114,17 +114,17 @@ public class StratumConnection
                     }, cts.Token);
 
                     networkStream = sslStream;
-                    
-                    if (expectingProxyHeader)
+
+                    if(expectingProxyHeader)
                         logger.Debug(() => $"[{ConnectionId}] {sslStream.SslProtocol.ToString().ToUpper()}-{sslStream.CipherAlgorithm.ToString().ToUpper()} Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
                     else
                         logger.Info(() => $"[{ConnectionId}] {sslStream.SslProtocol.ToString().ToUpper()}-{sslStream.CipherAlgorithm.ToString().ToUpper()} Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
                 }
                 else
-                    if (expectingProxyHeader)
-                        logger.Debug(() => $"[{ConnectionId}] Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
-                    else
-                        logger.Info(() => $"[{ConnectionId}] Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
+                    if(expectingProxyHeader)
+                    logger.Debug(() => $"[{ConnectionId}] Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
+                else
+                    logger.Info(() => $"[{ConnectionId}] Connection from {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}:{RemoteEndpoint.Port} accepted on port {endpoint.IPEndPoint.Port}");
 
                 // Async I/O loop(s)
                 var tasks = new[]
@@ -348,7 +348,7 @@ public class StratumConnection
         await using var stream = rmsm.GetStream(nameof(StratumConnection)) as RecyclableMemoryStream;
 
         // serialize
-        await using (var writer = new StreamWriter(stream!, StratumConstants.Encoding, -1, true))
+        await using(var writer = new StreamWriter(stream!, StratumConstants.Encoding, -1, true))
         {
             serializer.Serialize(writer, msg);
         }
@@ -399,7 +399,7 @@ public class StratumConnection
             if(proxyAddresses == null || !proxyAddresses.Any())
                 proxyAddresses = new[] { IPAddress.Loopback, IPUtils.IPv4LoopBackOnIPv6, IPAddress.IPv6Loopback };
 
-            if(proxyAddresses.Any(x => x.Equals(peerAddress)))
+            if(proxyProtocol.AcceptProxyProtocolFromAll || proxyAddresses.Any(x => x.Equals(peerAddress)))
             {
                 logger.Debug(() => $"[{ConnectionId}] Received Proxy-Protocol header: {line}");
 
@@ -410,10 +410,10 @@ public class StratumConnection
 
                 // Update client
                 RemoteEndpoint = new IPEndPoint(IPAddress.Parse(remoteAddress), int.Parse(remotePort));
-                
+
                 // log the IP from the proxy only if debug is enabled
                 // otherwise the logs are flooded by the proxy's health-checks
-                if (proxyAddresses.Any(x => x.IsEqual(RemoteEndpoint.Address)))
+                if(proxyAddresses.Any(x => x.IsEqual(RemoteEndpoint.Address)))
                     logger.Debug(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}");
                 else
                     logger.Info(() => $"Real-IP via Proxy-Protocol: {RemoteEndpoint.Address.CensorOrReturn(gpdrCompliantLogging)}");
