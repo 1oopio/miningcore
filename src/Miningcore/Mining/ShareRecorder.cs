@@ -101,7 +101,7 @@ public class ShareRecorder : BackgroundService
                 await blockRepo.InsertAsync(con, tx, blockEntity);
 
                 if(pools.TryGetValue(share.PoolId, out var poolConfig))
-                    messageBus.NotifyBlockFound(share.PoolId, blockEntity, poolConfig.Template);
+                    messageBus?.NotifyBlockFound(share.PoolId, blockEntity, poolConfig.Template);
                 else
                     logger.Warn(() => $"Block found for unknown pool {share.PoolId}");
             }
