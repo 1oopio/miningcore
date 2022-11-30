@@ -18,6 +18,7 @@ using Miningcore.JsonRpc;
 using Miningcore.Mining;
 using Miningcore.Time;
 using Miningcore.Util;
+using NBitcoin;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using NLog;
@@ -268,6 +269,28 @@ public class StratumConnection
             var buffer = result.Buffer;
             SequencePosition? position;
 
+            using(var memStream = new MemoryStream(buffer.ToArray()))
+            {
+                var x = await memStream.ReadBytesAsync(12);
+
+                logger.Info(() => $"[{ConnectionId} XXXXX: {x.ToArray().ToHexString()}");
+
+                var pp = new Miningcore.ProxyProtocol.ProxyProtocolV2.ProxyProtocol(memStream, null);
+
+                memStream.Position = 0;
+
+                var y = await Miningcore.ProxyProtocol.ProxyProtocol.ReadHeader(memStream);
+                if(y != null)
+                    logger.Info(() => $"[{ConnectionId} YYYYYYY: {y.ToString()}");
+            }
+
+            logger.Info(() => $"[{ConnectionId} Buffer length: {buffer.Length}");
+            logger.Info(() => $"[{ConnectionId} Buffer content: {buffer.ToArray().AsString(StratumConstants.Encoding)}");
+            logger.Info(() => $"[{ConnectionId} Buffer 12: {buffer.ToArray().Take(12).ToArray()}");
+            logger.Info(() => $"[{ConnectionId} Buffer 12 hex: {buffer.ToArray().Take(12).ToArray().ToHexString()}");
+
+            //Miningcore.ProxyProtocol.ProxyProtocol.ReadHeader(buffer);
+
             if(buffer.Length > MaxInboundRequestLength)
                 throw new InvalidDataException($"Incoming data exceeds maximum of {MaxInboundRequestLength}");
 
@@ -390,6 +413,10 @@ public class StratumConnection
     {
         expectingProxyHeader = false;
 
+        /* var header = Miningcore.ProxyProtocol.ProxyProtocol.ReadHeader(seq);
+        if(header != null)
+            logger.Info(() => $"[{ConnectionId}] Proxy-Protocol: {header.RemoteAddress}, {header.RemotePort}, {header.IsLocal}, {header.Version}");
+ */
         var line = seq.AsString(StratumConstants.Encoding);
         var peerAddress = RemoteEndpoint.Address;
 

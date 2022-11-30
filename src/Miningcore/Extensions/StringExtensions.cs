@@ -126,6 +126,11 @@ public static class StringExtensions
         return encoding.GetString(line.ToSpan());
     }
 
+    public static string AsString(this byte[] line, Encoding encoding)
+    {
+        return encoding.GetString(line);
+    }
+
     public static string Capitalize(this string str)
     {
         if(string.IsNullOrEmpty(str))

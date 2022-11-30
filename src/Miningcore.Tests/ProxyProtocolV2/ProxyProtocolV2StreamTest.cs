@@ -122,10 +122,11 @@ public class ProxyProtocolV2StreamTests : TestBase
         var sut = new ProxyProtocolStream(this.memoryStream, IPEndPoint.Parse("192.0.2.1"), _ => { });
         var reader = new StreamReader(sut);
         var writer = new StreamWriter(sut);
+        writer.NewLine = "\r\n"; // ensure \r\n is used on all platforms
 
         await writer.WriteLineAsync("test");
         await writer.FlushAsync();
-        Assert.Equal("test" + Environment.NewLine, await this.memoryStream.ReadLine());
+        Assert.Equal("test\r\n", await this.memoryStream.ReadLine());
 
         var result = reader.ReadLineAsync();
         this.memoryStream.SendLine("finished");
