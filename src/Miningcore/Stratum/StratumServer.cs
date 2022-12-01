@@ -20,8 +20,8 @@ using Miningcore.Time;
 using Miningcore.Util;
 using Newtonsoft.Json;
 using NLog;
-using Contract = Miningcore.Contracts.Contract;
 using static Miningcore.Util.ActionUtils;
+using Contract = Miningcore.Contracts.Contract;
 
 namespace Miningcore.Stratum;
 
@@ -150,27 +150,23 @@ public abstract class StratumServer
             }
 
             // dispose of banned clients as early as possible
-            if (DisconnectIfBanned(socket, remoteEndpoint))
+            if(DisconnectIfBanned(socket, remoteEndpoint))
                 return;
 
             // init connection
             var connection = new StratumConnection(logger, rmsm, clock, CorrelationIdGenerator.GetNextId(), clusterConfig.Logging.GPDRCompliant);
 
-<<<<<<< HEAD
             var expectingProxyHeader = port.PoolEndpoint.TcpProxyProtocol?.Enable == true;
-            if (expectingProxyHeader)
+            if(expectingProxyHeader)
                 logger.Debug(() => $"[{connection.ConnectionId}] Accepting connection from {remoteEndpoint.Address.CensorOrReturn(clusterConfig.Logging.GPDRCompliant)}:{remoteEndpoint.Port} ...");
             else
                 logger.Info(() => $"[{connection.ConnectionId}] Accepting connection from {remoteEndpoint.Address.CensorOrReturn(clusterConfig.Logging.GPDRCompliant)}:{remoteEndpoint.Port} ...");
-=======
-            logger.Info(() => $"[{connection.ConnectionId}] Accepting connection from {remoteEndpoint.Address.CensorOrReturn(clusterConfig.Logging.GPDRCompliant)}:{remoteEndpoint.Port} ...");
->>>>>>> d7ca2dcf3 (feat: improve gpdr compliance by censoring IPs in the logs)
 
             RegisterConnection(connection);
             OnConnect(connection, port.IPEndPoint);
 
             connection.DispatchAsync(socket, ct, port, remoteEndpoint, cert, OnRequestAsync, OnConnectionComplete, OnConnectionError);
-        }, ex=> logger.Error(ex)), ct);
+        }, ex => logger.Error(ex)), ct);
     }
 
     protected void RegisterConnection(StratumConnection connection)
@@ -307,7 +303,7 @@ public abstract class StratumServer
 
         if(!certs.TryGetValue(port.PoolEndpoint.TlsPfxFile, out var cert))
         {
-            cert = Guard(()=> new X509Certificate2(port.PoolEndpoint.TlsPfxFile, port.PoolEndpoint.TlsPfxPassword), ex =>
+            cert = Guard(() => new X509Certificate2(port.PoolEndpoint.TlsPfxFile, port.PoolEndpoint.TlsPfxPassword), ex =>
             {
                 logger.Info(() => $"Failed to load TLS certificate {port.PoolEndpoint.TlsPfxFile}: {ex.Message}");
                 throw ex;
@@ -324,7 +320,7 @@ public abstract class StratumServer
         if(remoteEndpoint == null || banManager == null)
             return false;
 
-        if (banManager.IsBanned(remoteEndpoint.Address))
+        if(banManager.IsBanned(remoteEndpoint.Address))
         {
             logger.Debug(() => $"Disconnecting banned ip {remoteEndpoint.Address}");
             socket.Close();
