@@ -221,3 +221,5 @@ src/Native/libcryptonight/xmrig/3rdparty/argon2/lib/genkat.o
 src/Native/libcryptonight/xmrig/3rdparty/argon2/lib/impl-select.o
 src/Native/librandomarq/librandomx.a
 src/Native/librandomx/librandomx.a
+
+*recovered-shares.txt

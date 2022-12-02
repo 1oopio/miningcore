@@ -1067,6 +1067,8 @@ public partial class ClusterConfig
     public int? CryptonightMaxThreads { get; set; }
 
     public string ShareRecoveryFile { get; set; }
+    public string ShareRecoveryFileDirectory { get; set; }
+    public bool ShareRecoveryFileWithHostname { get; set; }
 
     [Required]
     public PoolConfig[] Pools { get; set; }
