@@ -284,6 +284,17 @@ public class ShareRecorder : BackgroundService
         recoveryFilename = !string.IsNullOrEmpty(clusterConfig.ShareRecoveryFile)
             ? clusterConfig.ShareRecoveryFile
             : "recovered-shares.txt";
+
+        if(!string.IsNullOrEmpty(clusterConfig.ShareRecoveryFileDirectory))
+            Directory.CreateDirectory(clusterConfig.ShareRecoveryFileDirectory);
+
+        if(clusterConfig.ShareRecoveryFileWithHostname)
+            recoveryFilename = Path.Combine(
+                clusterConfig.ShareRecoveryFileDirectory ?? Directory.GetCurrentDirectory(),
+                $"{Environment.MachineName}-{recoveryFilename}"
+            );
+
+        logger.Info(() => $"Share recovery file: {recoveryFilename}");
     }
 
     private void BuildFaultHandlingPolicy()
