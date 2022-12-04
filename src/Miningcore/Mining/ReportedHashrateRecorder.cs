@@ -98,8 +98,6 @@ public class ReportedHashrateRecorder : BackgroundService
     {
         logger.Info(() => "Online");
 
-        logger.Info(() => "Offline");
-
         return messageBus.Listen<StratumReportedHashrate>()
             .ObserveOn(TaskPoolScheduler.Default)
             .Where(x => x.ReportedHashrate != null)
