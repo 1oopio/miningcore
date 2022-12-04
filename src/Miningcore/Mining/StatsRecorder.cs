@@ -92,7 +92,7 @@ public class StatsRecorder : BackgroundService
         var now = clock.Now;
         var timeFrom = now.Add(-hashrateCalculationWindow);
 
-        var stats = new MinerWorkerPerformanceStats
+        var stats = new MinerWorkerStats
         {
             Created = now
         };
@@ -170,7 +170,7 @@ public class StatsRecorder : BackgroundService
 
             // retrieve most recent miner/worker non-zero hashrate sample
             var previousMinerWorkerHashrates = await cf.Run(con =>
-                statsRepo.GetPoolMinerWorkerHashratesAsync(con, poolId, "actual", ct));
+                statsRepo.GetPoolMinerWorkerHashratesAsync(con, poolId, ct));
 
             const char keySeparator = '.';
 
@@ -232,7 +232,7 @@ public class StatsRecorder : BackgroundService
                         stats.SharesPerSecond = Math.Round(item.Count / minerHashTimeFrame, 3);
 
                         // persist
-                        await statsRepo.InsertMinerWorkerPerformanceStatsAsync(con, tx, stats, ct);
+                        await statsRepo.InsertMinerWorkerStatsAsync(con, tx, stats, ct);
 
                         // broadcast
                         messageBus.NotifyHashrateUpdated(pool.Config.Id, minerHashrate, stats.Miner, stats.Worker);
@@ -270,7 +270,7 @@ public class StatsRecorder : BackgroundService
                         stats.Worker = worker;
 
                         // persist
-                        await statsRepo.InsertMinerWorkerPerformanceStatsAsync(con, tx, stats, ct);
+                        await statsRepo.InsertMinerWorkerStatsAsync(con, tx, stats, ct);
 
                         // broadcast
                         messageBus.NotifyHashrateUpdated(pool.Config.Id, 0, stats.Miner, stats.Worker);
@@ -302,6 +302,10 @@ public class StatsRecorder : BackgroundService
             rowCount = await statsRepo.DeleteMinerStatsBeforeAsync(con, cutOff, ct);
             if(rowCount > 0)
                 logger.Info(() => $"Deleted {rowCount} old minerstats records");
+
+            rowCount = await statsRepo.DeleteReportedHashrateBeforeAsync(con, cutOff, ct);
+            if(rowCount > 0)
+                logger.Info(() => $"Deleted {rowCount} old reported_hashrate records");
         });
 
         logger.Info(() => "Stats GC complete");

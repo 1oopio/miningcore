@@ -15,7 +15,7 @@ public class AutoMapperProfile : Profile
     public AutoMapperProfile()
     {
         // Fix for Automapper 11 which chokes on recursive objects such as JToken
-        CreateMap<JToken, JToken>().ConvertUsing(x=> x);
+        CreateMap<JToken, JToken>().ConvertUsing(x => x);
 
         //////////////////////
         // outgoing mappings
@@ -27,6 +27,8 @@ public class AutoMapperProfile : Profile
             .ForMember(dest => dest.Hash, opt => opt.MapFrom(src => src.BlockHash))
             .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.BlockType))
             .ForMember(dest => dest.Status, opt => opt.Ignore());
+
+        CreateMap<Blockchain.ReportedHashrate, Persistence.Model.ReportedHashrate>();
 
         CreateMap<BlockStatus, string>().ConvertUsing(e => e.ToString().ToLower());
 
@@ -67,7 +69,7 @@ public class AutoMapperProfile : Profile
 
         CreateMap<WorkerPerformanceStats, Api.Responses.WorkerPerformanceStats>();
         CreateMap<WorkerPerformanceStatsContainer, Api.Responses.WorkerPerformanceStatsContainer>();
-        CreateMap<MinerWorkerPerformanceStats, Api.Responses.MinerPerformanceStats>();
+        CreateMap<MinerWorkerStats, Api.Responses.MinerPerformanceStats>();
 
         // PostgreSQL
         CreateMap<Persistence.Model.Share, Persistence.Postgres.Entities.Share>();
@@ -76,8 +78,9 @@ public class AutoMapperProfile : Profile
         CreateMap<Payment, Persistence.Postgres.Entities.Payment>();
         CreateMap<MinerSettings, Persistence.Postgres.Entities.MinerSettings>();
         CreateMap<PoolStats, Persistence.Postgres.Entities.PoolStats>();
+        CreateMap<Miningcore.Persistence.Model.ReportedHashrate, Persistence.Postgres.Entities.ReportedHashrate>();
 
-        CreateMap<MinerWorkerPerformanceStats, Persistence.Postgres.Entities.MinerWorkerPerformanceStats>()
+        CreateMap<MinerWorkerStats, Persistence.Postgres.Entities.MinerWorkerStats>()
             .ForMember(dest => dest.Id, opt => opt.Ignore());
 
         //////////////////////
@@ -94,8 +97,11 @@ public class AutoMapperProfile : Profile
         CreateMap<Persistence.Postgres.Entities.BalanceChange, BalanceChange>();
         CreateMap<Persistence.Postgres.Entities.PoolStats, PoolStats>();
         CreateMap<Persistence.Postgres.Entities.MinerSettings, MinerSettings>();
-        CreateMap<Persistence.Postgres.Entities.MinerWorkerPerformanceStats, MinerWorkerPerformanceStats>();
-        CreateMap<Persistence.Postgres.Entities.MinerWorkerPerformanceStats, Api.Responses.MinerPerformanceStats>();
+        CreateMap<Persistence.Postgres.Entities.MinerWorkerStats, MinerWorkerStats>();
+        CreateMap<Persistence.Postgres.Entities.MinerWorkerStats, Api.Responses.MinerPerformanceStats>();
+        CreateMap<Persistence.Postgres.Entities.ReportedHashrate, Persistence.Model.ReportedHashrate>();
+        CreateMap<Persistence.Postgres.Entities.MinerWorkerStatsFull, Persistence.Model.Projections.MinerWorkerStatsFull>();
+
 
         CreateMap<PoolStats, Mining.PoolStats>();
         CreateMap<BlockchainStats, Mining.PoolStats>();
