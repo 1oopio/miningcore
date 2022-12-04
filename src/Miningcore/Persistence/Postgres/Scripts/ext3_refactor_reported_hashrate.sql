@@ -12,7 +12,6 @@ CREATE TABLE reported_hashrate
 
 -- create new indexes
 CREATE INDEX IDX_REPORTEDHASHRATE_POOL_MINER_CREATED on reported_hashrate(poolid, miner, created);
-CREATE INDEX IDX_REPORTEDHASHRATES_POOL_MINER_WORKER_CREATED_HASHRATE on reported_hashrate(poolid, miner, worker, created desc, hashrate);
 
 
 -- copy data from minerstats to reported_hashrate
@@ -29,3 +28,12 @@ DELETE FROM minerstats WHERE hashratetype = 'reported';
 
 -- remove hashratetype column from minerstats
 ALTER TABLE minerstats DROP COLUMN hashratetype;
+
+
+-- if there is still time: optimize the current table and indexes
+VACUUM ANALYZE minerstats;
+VACUUM ANALYZE reported_hashrate;
+
+REINDEX INDEX idx_minerstats_pool_miner_worker_created_hashrate;
+REINDEX index idx_minerstats_pool_miner_created;
+REINDEX index idx_minerstats_pool_created;
