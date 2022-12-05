@@ -1,6 +1,6 @@
 namespace Miningcore.Persistence.Model;
 
-public class ReportedHashrate
+public record ReportedHashrate
 {
     public string PoolId { get; set; }
     public string Miner { get; set; }

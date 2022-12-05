@@ -1,6 +1,6 @@
 namespace Miningcore.Persistence.Model.Projections;
 
-public class MinerWorkerStatsFull
+public record MinerWorkerStatsFull
 {
     public string PoolId { get; set; }
     public string Miner { get; set; }
