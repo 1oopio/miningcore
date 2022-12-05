@@ -78,7 +78,9 @@ public class AutoMapperProfile : Profile
         CreateMap<Payment, Persistence.Postgres.Entities.Payment>();
         CreateMap<MinerSettings, Persistence.Postgres.Entities.MinerSettings>();
         CreateMap<PoolStats, Persistence.Postgres.Entities.PoolStats>();
-        CreateMap<Miningcore.Persistence.Model.ReportedHashrate, Persistence.Postgres.Entities.ReportedHashrate>();
+
+        CreateMap<Persistence.Model.ReportedHashrate, Persistence.Postgres.Entities.ReportedHashrate>()
+         .ForMember(dest => dest.Id, opt => opt.Ignore());
 
         CreateMap<MinerWorkerStats, Persistence.Postgres.Entities.MinerWorkerStats>()
             .ForMember(dest => dest.Id, opt => opt.Ignore());

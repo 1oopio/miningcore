@@ -24,7 +24,6 @@ using ReportedHashrate = Miningcore.Blockchain.ReportedHashrate;
 
 namespace Miningcore.Mining;
 
-public record StratumReportedHashrate(StratumConnection Connection, ReportedHashrate ReportedHashrate);
 
 public class ReportedHashrateRecorder : BackgroundService
 {
@@ -98,12 +97,10 @@ public class ReportedHashrateRecorder : BackgroundService
     {
         logger.Info(() => "Online");
 
-        logger.Info(() => "Offline");
-
-        return messageBus.Listen<StratumReportedHashrate>()
+        return messageBus.Listen<ReportedHashrate>()
             .ObserveOn(TaskPoolScheduler.Default)
-            .Where(x => x.ReportedHashrate != null)
-            .Select(x => x.ReportedHashrate)
+            .Where(x => x != null)
+            .Select(x => x)
             .Buffer(TimeSpan.FromSeconds(30), 250)
             .Where(reportedHashrates => reportedHashrates.Any())
             .Select(reportedHashrates => Observable.FromAsync(() =>

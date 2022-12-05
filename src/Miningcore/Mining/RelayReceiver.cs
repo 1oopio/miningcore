@@ -98,7 +98,7 @@ public class RelayReceiver : BackgroundService
                 try
                 {
                     // setup sockets
-                    var sockets = relays.Select(x=> SetupSubSocket(x)).ToArray();
+                    var sockets = relays.Select(x => SetupSubSocket(x)).ToArray();
 
                     using(new CompositeDisposable(sockets))
                     {
@@ -374,7 +374,7 @@ public class RelayReceiver : BackgroundService
             return;
         }
 
-        messageBus.SendMessage(new StratumReportedHashrate(null, hashrate));
+        messageBus.SendMessage(hashrate);
     }
 
     protected override async Task ExecuteAsync(CancellationToken ct)

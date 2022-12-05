@@ -205,7 +205,7 @@ public class DeroPool : PoolBase
 
             logger.Info(() => $"[{reported.PoolId}] Worker {reported.Miner}{(!string.IsNullOrEmpty(reported.Worker) ? $".{reported.Worker}" : string.Empty)}: Reported: {FormatUtil.FormatHashrate(reported.Hashrate)}");
 
-            messageBus.SendMessage(new StratumReportedHashrate(connection, reported));
+            messageBus.SendMessage(reported);
         }
     }
 
