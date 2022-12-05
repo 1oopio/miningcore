@@ -154,7 +154,7 @@ public class RelayPublisher : IHostedService
     public Task StartAsync(CancellationToken ct)
     {
         messageBus.Listen<StratumShare>().Subscribe(x => shareQueue.Add(x.Share, ct));
-        messageBus.Listen<StratumReportedHashrate>().Subscribe(x => hashrateQueue.Add(x.ReportedHashrate, ct));
+        messageBus.Listen<ReportedHashrate>().Subscribe(x => hashrateQueue.Add(x, ct));
 
         pubSocket = new ZSocket(ZSocketType.PUB);
 
