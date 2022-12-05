@@ -1,11 +1,13 @@
 using System.Data;
 using System.Data.Common;
 using System.Net.Sockets;
+using Microsoft.AspNetCore.Identity;
 using Miningcore.Configuration;
 using Miningcore.Extensions;
 using Miningcore.Mining;
 using Miningcore.Persistence;
 using Miningcore.Persistence.Model;
+using Miningcore.Persistence.Postgres.Repositories;
 using Miningcore.Persistence.Repositories;
 using Miningcore.Util;
 using NLog;
@@ -24,23 +26,27 @@ public class PPLNSPaymentScheme : IPayoutScheme
         IConnectionFactory cf,
         IShareRepository shareRepo,
         IBlockRepository blockRepo,
-        IBalanceRepository balanceRepo)
+        IBalanceRepository balanceRepo,
+        IPaybackPoolRepository paybackPoolRepo)
     {
         Contract.RequiresNonNull(cf);
         Contract.RequiresNonNull(shareRepo);
         Contract.RequiresNonNull(blockRepo);
         Contract.RequiresNonNull(balanceRepo);
+        Contract.RequiresNonNull(paybackPoolRepo);
 
         this.cf = cf;
         this.shareRepo = shareRepo;
         this.blockRepo = blockRepo;
         this.balanceRepo = balanceRepo;
+        this.paybackPoolRepo = paybackPoolRepo;
 
         BuildFaultHandlingPolicy();
     }
 
     private readonly IBalanceRepository balanceRepo;
     private readonly IBlockRepository blockRepo;
+    private readonly IPaybackPoolRepository paybackPoolRepo;
     private readonly IConnectionFactory cf;
     private readonly IShareRepository shareRepo;
     private static readonly ILogger logger = LogManager.GetLogger("PPLNS Payment", typeof(PPLNSPaymentScheme));
@@ -51,6 +57,7 @@ public class PPLNSPaymentScheme : IPayoutScheme
     private class Config
     {
         public decimal Factor { get; set; }
+        public bool PaybackPoolsEnabled { get; set; }
     }
 
     #region IPayoutScheme
@@ -63,21 +70,51 @@ public class PPLNSPaymentScheme : IPayoutScheme
 
         // PPLNS window (see https://bitcointalk.org/index.php?topic=39832)
         var window = payoutConfig?.ToObject<Config>()?.Factor ?? 2.0m;
+        var paybackPoolsEnabled = payoutConfig?.ToObject<Config>()?.PaybackPoolsEnabled ?? false;
+
+        // if payback is enabled, we need to check if there are any available payback pools
+        PaybackPool[] paybackPools = null;
+        if(paybackPoolsEnabled)
+            paybackPools = await paybackPoolRepo.GetPoolsAsync(con, poolConfig.Id);
 
         // calculate rewards
         var shares = new Dictionary<string, double>();
         var rewards = new Dictionary<string, decimal>();
-        var shareCutOffDate = await CalculateRewardsAsync(pool, payoutHandler, window, block, blockReward, shares, rewards, ct);
+        var paybacks = new Dictionary<string, decimal>();
+        var shareCutOffDate = await CalculateRewardsAsync(pool, payoutHandler, window, block, blockReward, shares, rewards, paybacks, paybackPools, ct);
 
         // update balances
         foreach(var address in rewards.Keys)
         {
             var amount = rewards[address];
+            var usage = $"Reward for {FormatUtil.FormatQuantity(shares[address])} shares for block {block.BlockHeight}";
 
             if(amount > 0)
             {
                 logger.Info(() => $"Crediting {address} with {payoutHandler.FormatAmount(amount)} for {FormatUtil.FormatQuantity(shares[address])} ({shares[address]}) shares for block {block.BlockHeight}");
-                await balanceRepo.AddAmountAsync(con, tx, poolConfig.Id, address, amount, $"Reward for {FormatUtil.FormatQuantity(shares[address])} shares for block {block.BlockHeight}");
+
+                if(paybackPoolsEnabled && paybacks.ContainsKey(address))
+                {
+                    var payback = paybacks[address];
+                    if(payback > 0)
+                    {
+                        logger.Info(() => $"Crediting {address} with {payoutHandler.FormatAmount(payback)} from payback pool{((paybackPools.Length > 1) ? "s" : "")} {paybackPools.PrettyPrint()}");
+                        amount += payback;
+                        usage = $"{usage} + {paybackPools.Length} payback pool{((paybackPools.Length > 1) ? "s" : "")}";
+                    }
+                }
+
+                await balanceRepo.AddAmountAsync(con, tx, poolConfig.Id, address, amount, usage);
+            }
+        }
+
+        if(paybackPoolsEnabled && paybackPools.Length > 0)
+        {
+            // update payback pool balances
+            foreach(var paybackPool in paybackPools)
+            {
+                logger.Info(() => $"Updating payback pool {paybackPool.PoolName} with {payoutHandler.FormatAmount(paybackPool.Available)}");
+                await paybackPoolRepo.UpdatePoolAvailableAsync(con, tx, paybackPool.PoolId, paybackPool.PoolName, paybackPool.Available);
             }
         }
 
@@ -151,8 +188,10 @@ public class PPLNSPaymentScheme : IPayoutScheme
 
     #endregion // IPayoutScheme
 
-    private async Task<DateTime?> CalculateRewardsAsync(IMiningPool pool, IPayoutHandler payoutHandler,decimal window, Block block, decimal blockReward,
-        Dictionary<string, double> shares, Dictionary<string, decimal> rewards, CancellationToken ct)
+    private async Task<DateTime?> CalculateRewardsAsync(IMiningPool pool,
+        IPayoutHandler payoutHandler, decimal window, Block block, decimal blockReward,
+        Dictionary<string, double> shares, Dictionary<string, decimal> rewards,
+        Dictionary<string, decimal> paybacks, PaybackPool[] paybackPools, CancellationToken ct)
     {
         var poolConfig = pool.Config;
         var done = false;
@@ -208,6 +247,20 @@ public class PPLNSPaymentScheme : IPayoutScheme
 
                 if(reward > 0)
                 {
+                    if(paybackPools != null)
+                    {
+                        paybackPools.Where(x => x.Available > 0).ToList().ForEach(x =>
+                        {
+                            var requested = reward * (decimal) x.SharePercentage;
+                            var payback = Math.Min(x.Available, requested);
+                            x.Available -= payback;
+                            if(!paybacks.ContainsKey(address))
+                                paybacks[address] = payback;
+                            else
+                                paybacks[address] += payback;
+                        });
+                    }
+
                     // accumulate miner reward
                     if(!rewards.ContainsKey(address))
                         rewards[address] = reward;

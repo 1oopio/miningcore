@@ -10,10 +10,6 @@ CREATE TABLE reported_hashrate
 );
 
 
--- create new indexes
-CREATE INDEX IDX_REPORTEDHASHRATE_POOL_MINER_CREATED on reported_hashrate(poolid, miner, created);
-
-
 -- copy data from minerstats to reported_hashrate
 INSERT INTO reported_hashrate 
     (poolid, miner, worker, hashrate, created)
@@ -21,6 +17,8 @@ SELECT poolid, miner, worker, hashrate, created
 FROM minerstats
 WHERE hashratetype = 'reported';
 
+-- create new indexes
+CREATE INDEX IDX_REPORTEDHASHRATE_POOL_MINER_CREATED on reported_hashrate(poolid, miner, created);
 
 -- delete data from minerstats
 DELETE FROM minerstats WHERE hashratetype = 'reported';

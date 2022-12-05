@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Text;
+using Miningcore.Persistence.Model;
 
 namespace Miningcore.Extensions;
 
@@ -132,5 +133,10 @@ public static class ArrayExtensions
             .ToArray();
 
         return result;
+    }
+
+    public static string PrettyPrint(this PaybackPool[] paybackPools)
+    {
+        return String.Join(", ", paybackPools.Select(x => x.PoolName).ToArray());
     }
 }

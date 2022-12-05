@@ -85,6 +85,8 @@ public class AutoMapperProfile : Profile
         CreateMap<MinerWorkerStats, Persistence.Postgres.Entities.MinerWorkerStats>()
             .ForMember(dest => dest.Id, opt => opt.Ignore());
 
+        CreateMap<PaybackPool, Persistence.Postgres.Entities.PaybackPool>();
+
         //////////////////////
         // incoming mappings
 
@@ -103,6 +105,7 @@ public class AutoMapperProfile : Profile
         CreateMap<Persistence.Postgres.Entities.MinerWorkerStats, Api.Responses.MinerPerformanceStats>();
         CreateMap<Persistence.Postgres.Entities.ReportedHashrate, Persistence.Model.ReportedHashrate>();
         CreateMap<Persistence.Postgres.Entities.MinerWorkerStatsFull, Persistence.Model.Projections.MinerWorkerStatsFull>();
+        CreateMap<Persistence.Postgres.Entities.PaybackPool, PaybackPool>();
 
 
         CreateMap<PoolStats, Mining.PoolStats>();
