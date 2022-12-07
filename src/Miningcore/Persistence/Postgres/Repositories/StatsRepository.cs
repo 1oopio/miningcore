@@ -252,10 +252,11 @@ public class StatsRepository : IStatsRepository
         DateTime start, DateTime end, CancellationToken ct)
     {
         const string query = @"
+        SELECT * FROM (
             SELECT 
                 date_trunc('hour', x.created) AS created,
                 (extract(minute FROM x.created)::int / 10) AS partition,
-                x.worker, 
+                x.worker AS worker, 
                 AVG(x.hs) AS hashrate, 
                 AVG(x.rhs) AS reportedhashrate, 
                 AVG(x.sharespersecond) AS sharespersecond
@@ -277,7 +278,11 @@ public class StatsRepository : IStatsRepository
                     created <= @end
            ) as x
            GROUP BY 1, 2, worker
-           ORDER BY 1, 2, worker";
+           ORDER BY 1, 2, worker
+        ) as res
+        WHERE 
+            res.hashrate IS NOT NULL OR
+            res.reportedhashrate IS NULL;";
 
         var entities = (await con.QueryAsync<Entities.MinerWorkerStatsFull>(new CommandDefinition(query,
                 new { poolId, miner, start, end }, cancellationToken: ct)))
