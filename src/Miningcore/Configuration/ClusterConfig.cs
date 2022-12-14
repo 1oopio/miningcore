@@ -1047,7 +1047,7 @@ public partial class ClusterConfig
     /// </summary>
     public string[] CoinTemplates { get; set; }
 
-    public string ClusterName { get; set; } = $"{Environment.GetEnvironmentVariable("MININGCORE_CLUSTERNAME") ?? "default"}";
+    public string ClusterName { get; set; } = $"{Environment.GetEnvironmentVariable("MC_CLUSTERNAME") ?? "default"}";
 
     public ClusterLoggingConfig Logging { get; set; }
     public ClusterBanningConfig Banning { get; set; }
