@@ -867,10 +867,20 @@ public partial class ApiConfig
     public string[] AdminIpWhitelist { get; set; }
 
     /// <summary>
+    /// Disables the admin ip whitelist
+    /// </summary>
+    public bool DisableAdminIpWhitelist { get; set; }
+
+    /// <summary>
     /// Restricts access to the /metrics endpoint to these IP addresses
     /// If this list null or empty, the default is 127.0.0.1
     /// </summary>
     public string[] MetricsIpWhitelist { get; set; }
+
+    /// <summary>
+    /// Disables the metrics ip whitelist
+    /// </summary>
+    public bool DisableMetricsIpWhitelist { get; set; }
 
     /// <summary>
     /// Enable serialization of null values in API responses

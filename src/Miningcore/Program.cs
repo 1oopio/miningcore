@@ -209,14 +209,20 @@ public class Program : BackgroundService
 
                         app.UseMiddleware<ApiExceptionHandlingMiddleware>();
 
-                        UseIpWhiteList(app, true, new[]
+                        if(!clusterConfig.Api.DisableAdminIpWhitelist)
                         {
+                            UseIpWhiteList(app, true, new[]
+                            {
                             "/api/admin"
-                        }, clusterConfig.Api?.AdminIpWhitelist);
-                        UseIpWhiteList(app, true, new[]
+                            }, clusterConfig.Api?.AdminIpWhitelist);
+                        }
+                        if(!clusterConfig.Api.DisableMetricsIpWhitelist)
                         {
+                            UseIpWhiteList(app, true, new[]
+                            {
                             "/metrics"
-                        }, clusterConfig.Api?.MetricsIpWhitelist);
+                            }, clusterConfig.Api?.MetricsIpWhitelist);
+                        }
 
 #if DEBUG
                         app.UseOpenApi();
