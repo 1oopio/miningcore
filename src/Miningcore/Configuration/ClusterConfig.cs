@@ -591,9 +591,14 @@ public class DaemonEndpointConfig : AuthenticatedNetworkEndpointConfig
     public IDictionary<string, object> Extra { get; set; }
 }
 
-public class DatabaseConfig : AuthenticatedNetworkEndpointConfig
+public class DatabaseConfig
 {
-    public string Database { get; set; }
+
+    public string Host { get; set; } = $"{Environment.GetEnvironmentVariable("MC_PERSISTENCE_HOST")}";
+    public int Port { get; set; } = Int32.Parse($"{Environment.GetEnvironmentVariable("MC_PERSISTENCE_PORT") ?? "5432"}");
+    public string Database { get; set; } = $"{Environment.GetEnvironmentVariable("MC_PERSISTENCE_DATABASE")}";
+    public string User { get; set; } = $"{Environment.GetEnvironmentVariable("MC_PERSISTENCE_USER")}";
+    public string Password { get; set; } = $"{Environment.GetEnvironmentVariable("MC_PERSISTENCE_PASSWORD")}";
 }
 
 public class PostgresConfig : DatabaseConfig
@@ -683,7 +688,7 @@ public class PoolEndpoint
     /// <summary>
     /// Certificate file password
     /// </summary>
-    public string TlsPfxPassword { get; set; }
+    public string TlsPfxPassword { get; set; } = $"{Environment.GetEnvironmentVariable("MC_POOL_ENDPOINT_TLS_PFX_PASSWORD")}";
 }
 
 public partial class VarDiffConfig
@@ -836,7 +841,7 @@ public class ApiTlsConfig
 {
     public bool Enabled { get; set; }
     public string TlsPfxFile { get; set; }
-    public string TlsPfxPassword { get; set; }
+    public string TlsPfxPassword { get; set; } = $"{Environment.GetEnvironmentVariable("MC_API_TLS_PFX_PASSWORD")}";
 }
 
 
