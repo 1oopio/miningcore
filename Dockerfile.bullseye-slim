@@ -1,0 +1,30 @@
+#build stage
+FROM mcr.microsoft.com/dotnet/sdk:6.0.301-bullseye-slim-amd64 AS builder
+
+WORKDIR /miningcore
+COPY . .
+
+RUN apt update && export DEBIAN_FRONTEND=noninteractive \
+    && apt -y --no-install-recommends install git cmake build-essential libssl-dev pkg-config libboost-all-dev libsodium-dev libzmq3-dev libzmq5-dev \
+&& cd src/Miningcore/ \
+&& dotnet publish -c Release --framework net6.0 -o ../../build/ \
+&& mkdir /usr/local/miningcore/ \
+&& cd ../../ \
+&& mv build/* /usr/local/miningcore/
+
+#Final image
+FROM mcr.microsoft.com/dotnet/aspnet:6.0.6-bullseye-slim-amd64
+
+LABEL maintainer="JJPOOL"
+LABEL description="Docker image for miningcore"
+
+COPY --from=builder /usr/local/miningcore/ /miningcore/
+
+RUN apt update && export DEBIAN_FRONTEND=noninteractive \
+    && apt -y --no-install-recommends install apt-transport-https openssl curl libssl-dev pkg-config libboost-all-dev libsodium-dev libzmq5 libzmq3-dev
+
+# HEALTHCHECK  --interval=10s --timeout=10s --start-period=40s \
+#   CMD curl --fail http://localhost:4000/api/pools || exit 1
+
+EXPOSE 6000/tcp
+ENTRYPOINT dotnet /miningcore/Miningcore.dll -c /config.json
