@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  miningcore-db:
+    image: jjpool/miningcore-db:latest
+    container_name: miningcore-db
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=${MININGCORE_USER}
+      - POSTGRES_PASSWORD=${MININGCORE_PASSWORD}
+      - POSTGRES_DB=${MININGCORE_DB}
+    volumes: 
+      - miningcore-db:/var/lib/postgresql/data/
+      - ./pools:/pools
+
+  adminer:
+    image: adminer
+    container_name: miningcore-adminer
+    restart: always
+    ports:
+      - 8080:8080
+
+  miningcore-stratum:
+    image: jjpool/miningcore-stratum:latest
+    container_name: miningcore-stratum
+    restart: always
+    depends_on:
+      - miningcore-db
+    ports:
+      - 0.0.0.0:4000:4000
+    volumes: 
+      - ./config.json:/config.json
+
+volumes:
+  miningcore-db:
