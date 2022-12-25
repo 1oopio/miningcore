@@ -458,6 +458,8 @@ public class Program : BackgroundService
         foreach(var config in clusterConfig.Pools)
         {
             config.EnableInternalStratum ??= clusterConfig.ShareRelays == null || clusterConfig.ShareRelays.Length == 0;
+            if(clusterConfig.DisableAllStratum)
+                config.EnableInternalStratum = false;
         }
 
         try

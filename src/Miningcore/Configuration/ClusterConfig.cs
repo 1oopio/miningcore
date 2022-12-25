@@ -1086,6 +1086,12 @@ public partial class ClusterConfig
     public string ShareRecoveryFileDirectory { get; set; }
     public bool ShareRecoveryFileWithHostname { get; set; }
 
+    /// <summary>
+    /// If set to true, the pool will not start any stratum ports
+    /// This option overrides the EnableInternalStratum option on the pool level
+    /// </summary>
+    public bool DisableAllStratum { get; set; }
+
     [Required]
     public PoolConfig[] Pools { get; set; }
 }
