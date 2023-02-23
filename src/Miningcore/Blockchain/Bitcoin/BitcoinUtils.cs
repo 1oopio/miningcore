@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using NBitcoin;
 using NBitcoin.DataEncoders;
-
 namespace Miningcore.Blockchain.Bitcoin;
 
 public static class BitcoinUtils

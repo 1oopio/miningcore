@@ -53,9 +53,10 @@ using NLog.Layouts;
 using NLog.Targets;
 using Prometheus;
 using WebSocketManager;
+using static Miningcore.Util.ActionUtils;
 using ILogger = NLog.ILogger;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
-using static Miningcore.Util.ActionUtils;
+using NexaPow = Miningcore.Native.NexaPow;
 
 // ReSharper disable AssignNullToNotNullAttribute
 // ReSharper disable PossibleNullReferenceException
@@ -183,12 +184,12 @@ public class Program : BackgroundService
                         });
 
                         // NSwag
-                        #if DEBUG
+#if DEBUG
                         services.AddOpenApiDocument(settings =>
                         {
                             settings.DocumentProcessors.Insert(0, new NSwagDocumentProcessor());
                         });
-                        #endif
+#endif
 
                         services.AddResponseCompression();
                         services.AddCors();
@@ -218,9 +219,9 @@ public class Program : BackgroundService
                             "/metrics"
                         }, clusterConfig.Api?.MetricsIpWhitelist);
 
-                        #if DEBUG
+#if DEBUG
                         app.UseOpenApi();
-                        #endif
+#endif
 
                         app.UseResponseCompression();
                         app.UseCors(corsPolicyBuilder => corsPolicyBuilder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
@@ -369,20 +370,20 @@ public class Program : BackgroundService
             .Where(config => config.Enabled)
             .Select(config => RunPool(config, coinTemplates, ct));
 
-        await Guard(()=> Task.WhenAll(tasks), ex =>
+        await Guard(() => Task.WhenAll(tasks), ex =>
         {
             switch(ex)
             {
                 case PoolStartupException pse:
-                {
-                    var _logger = pse.PoolId != null ? LogUtil.GetPoolScopedLogger(GetType(), pse.PoolId) : logger;
-                    _logger.Error(() => $"{pse.Message}");
+                    {
+                        var _logger = pse.PoolId != null ? LogUtil.GetPoolScopedLogger(GetType(), pse.PoolId) : logger;
+                        _logger.Error(() => $"{pse.Message}");
 
-                    logger.Error(() => "Cluster cannot start. Good Bye!");
+                        logger.Error(() => "Cluster cannot start. Good Bye!");
 
-                    hal.StopApplication();
-                    break;
-                }
+                        hal.StopApplication();
+                        break;
+                    }
 
                 default:
                     throw ex;
@@ -533,7 +534,7 @@ public class Program : BackgroundService
 
         versionOption = app.Option("-v|--version", "Version Information", CommandOptionType.NoValue);
         configFileOption = app.Option("-c|--config <configfile>", "Configuration File", CommandOptionType.SingleValue);
-        dumpConfigOption = app.Option("-dc|--dumpconfig", "Dump the configuration (useful for trouble-shooting typos in the config file)",CommandOptionType.NoValue);
+        dumpConfigOption = app.Option("-dc|--dumpconfig", "Dump the configuration (useful for trouble-shooting typos in the config file)", CommandOptionType.NoValue);
         shareRecoveryOption = app.Option("-rs", "Import lost shares using existing recovery file", CommandOptionType.SingleValue);
         generateSchemaOption = app.Option("-gcs|--generate-config-schema <outputfile>", "Generate JSON schema from configuration options", CommandOptionType.SingleValue);
         app.HelpOption("-? | -h | --help");
@@ -560,7 +561,7 @@ public class Program : BackgroundService
                 {
                     using(var validatingReader = new JSchemaValidatingReader(jsonReader)
                     {
-                        Schema =  LoadSchema()
+                        Schema = LoadSchema()
                     })
                     {
                         return serializer.Deserialize<ClusterConfig>(validatingReader);
@@ -796,6 +797,9 @@ public class Program : BackgroundService
 
         // Configure RandomARQ
         RandomARQ.messageBus = messageBus;
+
+        // Configure NexaPow
+        Crypto.Hashing.Algorithms.NexaPow.messageBus = messageBus;
     }
 
     private static async Task ConfigurePostgresCompatibilityOptions(IServiceProvider services)
@@ -823,7 +827,7 @@ public class Program : BackgroundService
 
         if(enableLegacyTimestampBehavior)
         {
-            logger.Info(()=> "Enabling Npgsql Legacy Timestamp Behavior");
+            logger.Info(() => "Enabling Npgsql Legacy Timestamp Behavior");
 
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
         }
@@ -886,7 +890,7 @@ public class Program : BackgroundService
 
         connectionString.Append($"CommandTimeout={pgConfig.CommandTimeout ?? 300};");
 
-        logger.Debug(()=> $"Using postgres connection string: {connectionString}");
+        logger.Debug(() => $"Using postgres connection string: {connectionString}");
 
         // register connection factory
         builder.RegisterInstance(new PgConnectionFactory(connectionString.ToString()))

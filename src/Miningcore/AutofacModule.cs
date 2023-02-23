@@ -21,6 +21,7 @@ using Module = Autofac.Module;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IO;
 using Miningcore.Blockchain.Ergo;
+using Miningcore.Blockchain.Nexa;
 using Miningcore.Nicehash;
 using Miningcore.Pushover;
 
@@ -169,6 +170,10 @@ public class AutofacModule : Module
 
         builder.RegisterType<EquihashJobManager>();
         builder.RegisterType<ErgoJobManager>();
+
+        //////////////////////
+        // Nexa
+        builder.RegisterType<NexaJobManager>();
 
         base.Load(builder);
     }

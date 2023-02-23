@@ -1,5 +1,10 @@
 {
   "profiles": {
+    "MiningCore-Raider": {
+        "commandName": "Project",
+        "commandLineArgs": "-c ../../../config.json",
+        "nativeDebugging": true
+    },
     "MiningCore": {
       "commandName": "Project",
       "commandLineArgs": "-c ..\\..\\..\\config.json",
