@@ -117,6 +117,9 @@
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
     </ItemGroup>
+    <ItemGroup>
+      <Folder Include="Blockchain\Bitcoin\Custom" />
+    </ItemGroup>
 
     <!-- Build library binaries from source on Linux -->
     <Target Name="BuildNativeLibsLinux" AfterTargets="AfterBuild" Condition="'$(IsLinux)' == 'true'">

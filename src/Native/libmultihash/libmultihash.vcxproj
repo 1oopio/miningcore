@@ -263,6 +263,7 @@
     <ClInclude Include="x21s.h" />
     <ClInclude Include="x22i.h" />
     <ClInclude Include="sha512_256.h" />
+    <ClInclude Include="schnorr.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bcrypt.c" />
@@ -359,6 +360,7 @@
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|x64'">MaxSpeed</Optimization>
     </ClCompile>
     <ClCompile Include="sha512_256.c" />
+    <ClCompile Include="schnorr.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="equi\crypto\equihash.tcc" />
