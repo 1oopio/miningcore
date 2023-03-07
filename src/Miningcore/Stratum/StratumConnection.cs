@@ -50,6 +50,7 @@ public class StratumConnection
     private readonly IMasterClock clock;
 
     private const int MaxInboundRequestLength = 0x8000;
+    public static readonly Encoding Encoding = new UTF8Encoding(false);
 
     private Stream networkStream;
     private readonly Pipe receivePipe;
@@ -242,7 +243,7 @@ public class StratumConnection
             if(cb == 0)
                 break; // EOF
 
-            logger.Debug(() => $"[{ConnectionId}] [NET] Received data: {StratumConstants.Encoding.GetString(memory.Slice(0, cb).Span)}");
+            logger.Debug(() => $"[{ConnectionId}] [NET] Received data: {Encoding.GetString(memory.Slice(0, cb).Span)}");
 
             LastReceive = clock.Now;
 
@@ -271,7 +272,7 @@ public class StratumConnection
             if(buffer.Length > MaxInboundRequestLength)
                 throw new InvalidDataException($"Incoming data exceeds maximum of {MaxInboundRequestLength}");
 
-            logger.Debug(() => $"[{ConnectionId}] [PIPE] Received data: {result.Buffer.AsString(StratumConstants.Encoding)}");
+            logger.Debug(() => $"[{ConnectionId}] [PIPE] Received data: {result.Buffer.AsString(Encoding)}");
 
             do
             {
@@ -348,12 +349,12 @@ public class StratumConnection
         await using var stream = rmsm.GetStream(nameof(StratumConnection)) as RecyclableMemoryStream;
 
         // serialize
-        await using(var writer = new StreamWriter(stream!, StratumConstants.Encoding, -1, true))
+        await using(var writer = new StreamWriter(stream!, Encoding, -1, true))
         {
             serializer.Serialize(writer, msg);
         }
 
-        logger.Debug(() => $"[{ConnectionId}] Sending: {StratumConstants.Encoding.GetString(stream.GetReadOnlySequence())}");
+        logger.Debug(() => $"[{ConnectionId}] Sending: {Encoding.GetString(stream.GetReadOnlySequence())}");
 
         // append newline
         stream.WriteByte((byte) '\n');
@@ -373,7 +374,7 @@ public class StratumConnection
         ReadOnlySequence<byte> lineBuffer)
     {
         await using var stream = rmsm.GetStream(nameof(StratumConnection), lineBuffer.ToSpan()) as RecyclableMemoryStream;
-        using var reader = new JsonTextReader(new StreamReader(stream!, StratumConstants.Encoding));
+        using var reader = new JsonTextReader(new StreamReader(stream!, Encoding));
 
         var request = serializer.Deserialize<JsonRpcRequest>(reader);
 
@@ -390,7 +391,7 @@ public class StratumConnection
     {
         expectingProxyHeader = false;
 
-        var line = seq.AsString(StratumConstants.Encoding);
+        var line = seq.AsString(Encoding);
         var peerAddress = RemoteEndpoint.Address;
 
         if(line.StartsWith("PROXY "))

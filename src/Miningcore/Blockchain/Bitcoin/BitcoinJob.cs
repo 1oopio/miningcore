@@ -246,6 +246,9 @@ public class BitcoinJob
         if (coin.HasFounderFee)
             rewardToPool = CreateFounderOutputs(tx, rewardToPool);
 
+        if (coin.HasMinerFund)
+            rewardToPool = CreateMinerFundOutputs(tx, rewardToPool);
+
         // Remaining amount goes to pool
         tx.Outputs.Add(rewardToPool, poolAddressDestination);
 
@@ -518,6 +521,27 @@ public class BitcoinJob
 
     #endregion // Founder
 
+    #region Minerfund
+
+    protected MinerFundTemplateExtra minerFundParameters;
+
+    protected virtual Money CreateMinerFundOutputs(Transaction tx, Money reward)
+    {
+        var payeeReward = minerFundParameters.MinimumValue;
+
+        if (!string.IsNullOrEmpty(minerFundParameters.Addresses?.FirstOrDefault()))
+        {
+            var payeeAddress = BitcoinUtils.AddressToDestination(minerFundParameters.Addresses[0], network);
+            tx.Outputs.Add(payeeReward, payeeAddress);
+        }
+
+        reward -= payeeReward;
+
+        return reward;
+    }
+
+    #endregion // Founder
+
     #region API-Surface
 
     public BlockTemplate BlockTemplate { get; protected set; }
@@ -569,7 +593,7 @@ public class BitcoinJob
         {
             masterNodeParameters = BlockTemplate.Extra.SafeExtensionDataAs<MasterNodeBlockTemplateExtra>();
 
-            if(coin.Symbol == "RTM")
+            if((coin.Symbol == "RTM") || (coin.Symbol == "THOON") || (coin.Symbol == "YERB") || (coin.Symbol == "BTRM"))
             {
                 if(masterNodeParameters.Extra?.ContainsKey("smartnode") == true)
                 {
@@ -590,6 +614,9 @@ public class BitcoinJob
 
         if (coin.HasFounderFee)
             founderParameters = BlockTemplate.Extra.SafeExtensionDataAs<FounderBlockTemplateExtra>();
+
+        if (coin.HasMinerFund)
+            minerFundParameters = BlockTemplate.Extra.SafeExtensionDataAs<MinerFundTemplateExtra>("coinbasetxn", "minerfund");
 
         this.coinbaseHasher = coinbaseHasher;
         this.headerHasher = headerHasher;

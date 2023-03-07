@@ -29,6 +29,10 @@ Commercial support directly by the maintainer is available through [miningcore.p
 
 For general questions visit the [Discussions Area](https://github.com/oliverw/miningcore/discussions).
 
+## Contributions
+
+Code contributions are very welcome and should be submitted as standard [pull requests](https://docs.github.com/en/pull-requests) (PR) based on the [`dev` branch](https://github.com/oliverw/miningcore/tree/dev).
+
 ## Building on Debian/Ubuntu
 
 ```console
@@ -85,6 +89,31 @@ For macOS:
 docker run --rm -v $(pwd):/app -w /app mcr.microsoft.com/dotnet/sdk:6.0 /bin/bash -c 'apt update && apt install libssl-dev pkg-config libboost-all-dev libsodium-dev build-essential cmake -y --no-install-recommends && cd src/Miningcore && dotnet publish -c Release --framework net6.0 -o /app/build/ -r osx-x64 --self-contained false'
 ```
 
+### Building and Running Miningcore from a container
+
+**note** - The build scripts optimize  the build for the hardware platform the container is built on ( does it have avx for example).  If you run this container on a platform that does NOT have the same architecture you could have unexplained crashes.  YOU SHOULD BUILD THIS CONTAINER ON THE HOST YOU ARE GOING TO RUN THIS CONTAINER ON.
+
+Commands to build container: `docker build -t <your_dockerhubid>/miningcore:v73-foo .`
+
+The docker build assumes you are going to mount your  config file  in a volume mount.  for example:
+
+```sh
+
+docker run -d \
+    -p 4000:4000 \
+    -p 4066:4066 \
+    -p 4067:4067 \
+    --name mc    \
+    -v `pwd`/config_prod.json:/app/config.json \
+    --restart=unless-stopped \
+    <your_dockerhubid>/miningcore:v73-foo
+
+```
+
+
+
+
+
 For Windows using Linux container:
 
 ```console
@@ -97,6 +126,12 @@ docker system prune -af
 ```
 
 ## Running Miningcore
+
+### Production OS
+
+Windows is **not** a supported production environment. Only Linux is. Please do not file issues related to running a pool on Windows. Windows topics should be posted under [discussions](https://github.com/oliverw/miningcore/discussions).
+
+Running and developing Miningcore on Windows is of course supported.
 
 ### Database setup
 
@@ -186,18 +221,19 @@ Miningcore comes with an integrated REST API. Please refer to this page for inst
 
 A public production pool requires a web-frontend for your users to check their hashrate, earnings etc. Miningcore does not include such frontend but there are several community projects that can be used as starting point.
 
+Once again, do not run a production pool on Windows! This is not a supported configuration.
+
 ## Donations
 
 To support this project you can become a [sponsor](https://github.com/sponsors/oliverw) or send a donation to the following accounts:
 
-* XMR: `46S2AEwYmD9fnmZkxCpXf1T3U3DyEq3Ekb8Lg9kgUMGABn9Fp9q5nE2fBcXebrjrXfZHy5uC5HfLE6X4WLtSm35wUr9Mh46`
-* BTC:  `bc1quzdczlpfn3n4xvpdz0x9h79569afhg0ashwxxp`
-* BCH:  `qrf6uhhapq7fgkjv2ce2hcjqpk8ec2zc25et4xsphv`
-* LTC:  `LTK6CWastkmBzGxgQhTTtCUjkjDA14kxzC`
+* ETH:  `miningcore.eth (ENS Address)`
+* BTC:  `miningcore.eth (ENS Address)`
+* LTC:  `miningcore.eth (ENS Address)`
 * DOGE: `DGDuKRhBewGP1kbUz4hszNd2p6dDzWYy9Q`
-* ETH:  `0xcb55abBfe361B12323eb952110cE33d5F28BeeE1`
 * ETC:  `0xF8cCE9CE143C68d3d4A7e6bf47006f21Cfcf93c0`
 * DASH: `XqpBAV9QCaoLnz42uF5frSSfrJTrqHoxjp`
 * ZEC:  `t1YHZHz2DGVMJiggD2P4fBQ2TAPgtLSUwZ7`
 * BTG:  `GQb77ZuMCyJGZFyxpzqNfm7GB1rQreP4n6`
 * ERGO: `9foYU8JkoqWBSDA3ba8VHfduPXV2NaVNPPAFkdYoR9t9cPQGMv4`
+* XMR:  `46S2AEwYmD9fnmZkxCpXf1T3U3DyEq3Ekb8Lg9kgUMGABn9Fp9q5nE2fBcXebrjrXfZHy5uC5HfLE6X4WLtSm35wUr9Mh46`
