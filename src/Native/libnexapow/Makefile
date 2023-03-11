@@ -13,13 +13,13 @@ all: make-secp256k1 $(TARGET)
 autoconf:
 	cd ./secp256k1; ./autogen.sh; export CC="gcc -fPIC"; ./configure --enable-module-schnorr;
 
-make-secp256k1: autoconf
+make-secp256k1: 
 	$(MAKE) -C ./secp256k1
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(LDFLAGS) -o $@ $^ secp256k1/.libs/libsecp256k1.a $(LDLIBS)
 
-clean-secp256k1:
+clean-secp256k1: autoconf
 	$(MAKE) -C ./secp256k1 clean
 
 clean: clean-secp256k1
