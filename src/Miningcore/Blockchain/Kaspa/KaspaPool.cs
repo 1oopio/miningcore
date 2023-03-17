@@ -37,8 +37,6 @@ public class KaspaPool : PoolBase
     {
     }
 
-    private long currentJobId;
-
     private KaspaJobManager manager;
 
     private async Task OnSubscribeAsync(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
@@ -154,34 +152,26 @@ public class KaspaPool : PoolBase
     {
         var context = connection.ContextAs<KaspaWorkerContext>();
         var job = new KaspaWorkerJob(context.Difficulty);
-        var result = new object[] { };
 
         manager.PrepareWorkerJob(job, out var hash, out var jobs, out var timestamp);
 
         if(context.EthereumStratumVariant)
         {
-            result = new object[]
+            return new object[]
             {
                 job.Id,
                 hash + BitConverter.GetBytes(((UInt64) (timestamp))).AsSpan().ToHexString()
-        };
-
-        }
-        else
-        {
-            result = new object[]
-            {
-                job.Id,
-                jobs,
-                timestamp
             };
         }
 
-        return result;
+        return new object[]
+        {
+            job.Id, jobs, timestamp
+        };
     }
 
 
-    private async Task OnSubmitHashrate(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
+    private async Task OnSubmitHashrate(StratumConnection connection, Timestamped<JsonRpcRequest> tsRequest)
     {
         var request = tsRequest.Value;
         var context = connection.ContextAs<KaspaWorkerContext>();
@@ -210,7 +200,7 @@ public class KaspaPool : PoolBase
         if(lastAge > reportedHashrateInterval)
         {
             context.Stats.LastReportedHashrate = clock.Now;
-            ReportedHashrate reported = new ReportedHashrate
+            var reported = new ReportedHashrate
             {
                 PoolId = poolConfig.Id,
                 Miner = context.Miner,
@@ -256,7 +246,7 @@ public class KaspaPool : PoolBase
             // recognize activity
             context.LastActivity = clock.Now;
 
-            Share share = await manager.SubmitShareAsync(connection, submitRequest, ct);
+            var share = await manager.SubmitShareAsync(connection, submitRequest, ct);
 
             await connection.RespondAsync(true, request.Id);
 
@@ -294,16 +284,11 @@ public class KaspaPool : PoolBase
         }
     }
 
-    private string NextJobId()
-    {
-        return Interlocked.Increment(ref currentJobId).ToString(CultureInfo.InvariantCulture);
-    }
-
     private async Task OnNewJobAsync()
     {
         logger.Info(() => "Broadcasting jobs");
 
-        await Guard(() => ForEachMinerAsync(async (connection, ct) =>
+        await Guard(() => ForEachMinerAsync(async (connection, _) =>
         {
             // send job
             var job = CreateWorkerJob(connection);
@@ -315,7 +300,7 @@ public class KaspaPool : PoolBase
 
     protected override async Task SetupJobManager(CancellationToken ct)
     {
-        var extraNonce1Size = 2;
+        const int extraNonce1Size = 2;
 
         manager = ctx.Resolve<KaspaJobManager>(
             new TypedParameter(typeof(IExtraNonceProvider), new KaspaExtraNonceProvider(poolConfig.Id, extraNonce1Size, clusterConfig.InstanceId)));
@@ -363,7 +348,6 @@ public class KaspaPool : PoolBase
         Timestamped<JsonRpcRequest> tsRequest, CancellationToken ct)
     {
         var request = tsRequest.Value;
-        var context = connection.ContextAs<KaspaWorkerContext>();
 
         try
         {
@@ -380,7 +364,7 @@ public class KaspaPool : PoolBase
                     break;
                 case KaspaStratumMethods.SubmitHashrate:
                 case KaspaStratumMethods.SubmitHashrateAlt:
-                    await OnSubmitHashrate(connection, tsRequest, ct);
+                    await OnSubmitHashrate(connection, tsRequest);
                     break;
                 default:
                     logger.Debug(() => $"[{connection.ConnectionId}] Unsupported RPC request: {JsonConvert.SerializeObject(request, serializerSettings)}");

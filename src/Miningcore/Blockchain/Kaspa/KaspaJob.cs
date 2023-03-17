@@ -25,8 +25,8 @@ public class KaspaJob
         this.extraNonceSize = extraNonceSize;
     }
 
-    private static readonly Blake2b hasher = new Blake2b();
-    private static readonly HeavyHashKaspa heavyHasher = new HeavyHashKaspa();
+    private static readonly Blake2b Hasher = new Blake2b();
+    private static readonly HeavyHashKaspa HeavyHasher = new HeavyHashKaspa();
 
     protected bool RegisterSubmit(string nonce)
     {
@@ -40,10 +40,10 @@ public class KaspaJob
     #region API-Surface
 
     public string PrevHash { get; }
-    public RpcBlock Block { get; }
+    private RpcBlock Block { get; }
     private readonly ConcurrentDictionary<string, bool> submissions = new(StringComparer.OrdinalIgnoreCase);
     public string JobId { get; protected set; }
-    private int extraNonceSize;
+    private readonly int extraNonceSize;
 
     public void PrepareWorkerJob(KaspaWorkerJob workerJob, out string hash, out BigInteger[] jobs, out long timestamp)
     {
@@ -53,29 +53,29 @@ public class KaspaJob
         timestamp = Block.Header.Timestamp;
     }
 
-    public static byte[] HashBlock(RpcBlock block, Boolean prePow)
+    public static byte[] HashBlock(RpcBlock block, bool prePow)
     {
-        IntPtr blakeState = hasher.InitKey(32, Encoding.ASCII.GetBytes("BlockHash"));
+        var blakeState = Hasher.InitKey(32, Encoding.ASCII.GetBytes("BlockHash"));
 
         {
             Span<byte> data = stackalloc byte[10];
             BitConverter.GetBytes(((ushort) block.Header.Version)).CopyTo(data[0..]);
             BitConverter.GetBytes((UInt64) block.Header.Parents.Count).CopyTo(data[2..]);
-            hasher.Update(blakeState, data);
+            Hasher.Update(blakeState, data);
         }
 
         foreach(var parent in block.Header.Parents)
         {
-            hasher.Update(blakeState, BitConverter.GetBytes((UInt64) parent.ParentHashes.Count));
+            Hasher.Update(blakeState, BitConverter.GetBytes((UInt64) parent.ParentHashes.Count));
             foreach(var parentHash in parent.ParentHashes)
             {
-                hasher.Update(blakeState, parentHash.HexToByteArray());
+                Hasher.Update(blakeState, parentHash.HexToByteArray());
             }
         }
 
-        hasher.Update(blakeState, block.Header.HashMerkleRoot.HexToByteArray());
-        hasher.Update(blakeState, block.Header.AcceptedIdMerkleRoot.HexToByteArray());
-        hasher.Update(blakeState, block.Header.UtxoCommitment.HexToByteArray());
+        Hasher.Update(blakeState, block.Header.HashMerkleRoot.HexToByteArray());
+        Hasher.Update(blakeState, block.Header.AcceptedIdMerkleRoot.HexToByteArray());
+        Hasher.Update(blakeState, block.Header.UtxoCommitment.HexToByteArray());
 
         {
             Span<byte> data = stackalloc byte[36];
@@ -84,24 +84,24 @@ public class KaspaJob
             BitConverter.GetBytes(((UInt64) (prePow ? 0 : block.Header.Nonce))).CopyTo(data[12..]);
             BitConverter.GetBytes(((UInt64) block.Header.DaaScore)).CopyTo(data[20..]);
             BitConverter.GetBytes(((UInt64) block.Header.BlueScore)).CopyTo(data[28..]);
-            hasher.Update(blakeState, data);
+            Hasher.Update(blakeState, data);
         }
 
         var blueWork = block.Header.BlueWork;
         var parsedBlueWork = blueWork.PadLeft(blueWork.Count() + blueWork.Count() % 2, '0').HexToByteArray();
 
-        hasher.Update(blakeState, BitConverter.GetBytes((UInt64) parsedBlueWork.Count()));
-        hasher.Update(blakeState, parsedBlueWork);
+        Hasher.Update(blakeState, BitConverter.GetBytes((UInt64) parsedBlueWork.Count()));
+        Hasher.Update(blakeState, parsedBlueWork);
 
-        hasher.Update(blakeState, block.Header.PruningPoint.HexToByteArray());
+        Hasher.Update(blakeState, block.Header.PruningPoint.HexToByteArray());
 
         Span<byte> hash = stackalloc byte[32];
-        hasher.Final(blakeState, hash);
+        Hasher.Final(blakeState, hash);
 
         return hash.ToArray();
     }
 
-    public static byte[] PowHashBlock(RpcBlock block)
+    private static byte[] PowHashBlock(RpcBlock block)
     {
         var preHash = HashBlock(block, true);
 
@@ -115,7 +115,7 @@ public class KaspaJob
         cShakeDigest.DoFinal(powHash, 0, 32);
 
         var heavyHash = new byte[32];
-        heavyHasher.Digest(powHash, heavyHash, new object[] { preHash });
+        HeavyHasher.Digest(powHash, heavyHash, new object[] { preHash });
 
         var cShakeDigest2 = new CShakeDigest(256, null, Encoding.ASCII.GetBytes("HeavyHash"));
         cShakeDigest2.BlockUpdate(heavyHash, 0, 32);
@@ -125,10 +125,10 @@ public class KaspaJob
         return hashFinal;
     }
 
-    public static BigInteger[] JobData(string hash)
+    private static BigInteger[] JobData(string hash)
     {
         var hashData = hash.HexToByteArray().AsSpan();
-        List<BigInteger> preHashU64s = new List<BigInteger>();
+        var preHashU64s = new List<BigInteger>();
 
         for(var i = 0; i < 4; i++)
         {
@@ -139,7 +139,7 @@ public class KaspaJob
         return preHashU64s.ToArray();
     }
 
-    public BigInteger EncodeTarget()
+    private BigInteger EncodeTarget()
     {
         var bits = new BigInteger(Block.Header.Bits);
         var mant = bits & 0xFFFFFF;
@@ -157,7 +157,7 @@ public class KaspaJob
         return (mant << expt);
     }
 
-    public Double DifficultyFromTargetBits()
+    public double DifficultyFromTargetBits()
     {
         return (Math.Pow(2, 255) / ((double) EncodeTarget())) / Math.Pow(2, 31);
     }

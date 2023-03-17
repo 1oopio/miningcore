@@ -22,5 +22,5 @@ public class KaspaWorkerContext : WorkerContextBase
     /// <summary>
     /// BZMiner uses different stratum messages, it has EthereumStratum in request
     /// </summary>
-    public Boolean EthereumStratumVariant { get; set; } = false;
+    public bool EthereumStratumVariant { get; set; } = false;
 }

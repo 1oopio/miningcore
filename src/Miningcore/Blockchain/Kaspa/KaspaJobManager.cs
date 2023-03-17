@@ -423,7 +423,6 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
     protected override async Task PostStartInitAsync(CancellationToken ct)
     {
         // coin config
-        var coin = poolConfig.Template.As<KaspaCoinTemplate>();
         var request = new KaspadMessage();
         request.GetCurrentNetworkRequest = new GetCurrentNetworkRequestMessage();
 
@@ -505,7 +504,7 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
 
         // Periodically update network stats
         Observable.Interval(TimeSpan.FromMinutes(1))
-            .Select(via => Observable.FromAsync(() =>
+            .Select(_ => Observable.FromAsync(() =>
                 Guard(() => UpdateNetworkStatsAsync(ct),
                     ex => logger.Error(ex))))
             .Concat()
@@ -514,14 +513,14 @@ public class KaspaJobManager : JobManagerBase<KaspaJob>
         SetupJobUpdates(ct);
     }
 
-    protected virtual void SetupJobUpdates(CancellationToken ct)
+    private void SetupJobUpdates(CancellationToken ct)
     {
         var blockSubmission = blockFoundSubject.Synchronize();
         var pollTimerRestart = blockFoundSubject.Synchronize();
 
         var triggers = new List<IObservable<(string Via, string Data)>>
         {
-            blockSubmission.Select(x => (JobRefreshBy.BlockFound, (string) null))
+            blockSubmission.Select(_ => (JobRefreshBy.BlockFound, (string) null))
         };
 
         if(poolConfig.BlockRefreshInterval > 0)

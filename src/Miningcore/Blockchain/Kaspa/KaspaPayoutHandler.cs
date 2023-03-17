@@ -44,39 +44,39 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         this.ctx = ctx;
     }
 
-    protected readonly IComponentContext ctx;
+    private readonly IComponentContext ctx;
     private KaspaGrpcRPCClient grpc;
     private KaspaGrpcWalletClient grpcWallet;
     private KaspaNetworkType? networkType;
     private KaspaPaymentProcessingConfigExtra extraPoolPaymentProcessingConfig;
-    private List<String> usedChilds = new();
-    protected readonly object childLock = new();
+    private List<string> usedChilds = new();
+    private readonly object childLock = new();
 
     protected override string LogCategory => "Kaspa Payout Handler";
 
-    private string ConvertToAddress(string prefix, byte[] bytes, uint version)
+    private static string ConvertToAddress(string prefix, byte[] bytes, uint version)
     {
-        string charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
-        int checksumLength = 8;
+        const string charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+        const int checksumLength = 8;
         long[] generator = { 0x98f2bc8e61, 0x79b76d99e2, 0xf33e5fb3c4, 0xae2eabe2a8, 0x1e4f43e470 };
 
-        byte[] data = new byte[1 + bytes.Length];
+        var data = new byte[1 + bytes.Length];
         data[0] = (byte) version;
         bytes.CopyTo(data, 1);
 
         // Convert source bytes
-        ArrayList regrouped = new ArrayList();
-        byte toBits = 5;
+        var regrouped = new ArrayList();
+        const byte toBits = 5;
         byte nextByte = 0;
         byte filledBits = 0;
         foreach(var dataByte in data)
         {
-            byte b = dataByte;
+            var b = dataByte;
             byte remainingFromBits = 8;
             while(remainingFromBits > 0)
             {
-                byte remainingToBits = (byte) (toBits - filledBits);
-                byte toExtract = remainingFromBits;
+                var remainingToBits = (byte) (toBits - filledBits);
+                var toExtract = remainingFromBits;
                 if(remainingToBits < toExtract)
                 {
                     toExtract = remainingToBits;
@@ -106,20 +106,20 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         }
 
         // Create checksum
-        int[] prefixLower5Bits = new int[prefix.Length];
+        var prefixLower5Bits = new int[prefix.Length];
         for(var i = 0; i < prefix.Length; i++)
         {
-            char c = prefix[i];
+            var c = prefix[i];
             prefixLower5Bits[i] = (int) (c & 31);
         }
         int[] templateZeroes = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
-        ArrayList payloadInts = new ArrayList();
+        var payloadInts = new ArrayList();
         foreach(var b in regrouped.OfType<byte>())
         {
             payloadInts.Add((int) b);
         }
-        ArrayList concat = new ArrayList();
+        var concat = new ArrayList();
         concat.AddRange(prefixLower5Bits);
         concat.Add(0);
         concat.AddRange(payloadInts);
@@ -128,7 +128,7 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         long polyModResult = 1;
         foreach(var value in concat)
         {
-            long topBits = polyModResult >> 35;
+            var topBits = polyModResult >> 35;
             polyModResult = (((polyModResult & 0x07ffffffff) << 5) ^ (int) (value));
             for(var i = 0; i < generator.Length; i++)
             {
@@ -140,17 +140,17 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
         }
         polyModResult ^= 1;
 
-        ArrayList res = new ArrayList();
+        var res = new ArrayList();
         for(var i = 0; i < checksumLength; i++)
         {
             res.Add((byte) ((polyModResult >> (int) ((uint) (5 * (checksumLength - 1 - i)))) & 31));
         }
 
         // Build Address
-        ArrayList addressData = new ArrayList();
+        var addressData = new ArrayList();
         addressData.AddRange(regrouped);
         addressData.AddRange(res);
-        string address = "";
+        var address = "";
         for(var i = 0; i < addressData.Count; i++)
         {
             if((byte) addressData[i] >= charset.Length)
@@ -166,23 +166,24 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
     private string ConvertToAddress(byte[] bytes)
     {
         var prefix = "";
-        if(networkType == KaspaNetworkType.Main)
+
+        switch(networkType)
         {
-            prefix = "kaspa";
-        }
-        else if(networkType == KaspaNetworkType.Dev)
-        {
-            prefix = "kaspadev";
-        }
-        else if(networkType == KaspaNetworkType.Test)
-        {
-            prefix = "kaspatest";
+            case KaspaNetworkType.Main:
+                prefix = "kaspa";
+                break;
+            case KaspaNetworkType.Dev:
+                prefix = "kaspadev";
+                break;
+            case KaspaNetworkType.Test:
+                prefix = "kaspatest";
+                break;
         }
         if(bytes[0] == 0xaa && bytes[1] <= 0x76)
         {
             return ConvertToAddress(prefix, bytes[2..(2 + bytes[1])], 0x08);
         }
-        else if(bytes[0] < 0x76)
+        if(bytes[0] < 0x76)
         {
             return ConvertToAddress(prefix, bytes[1..(1 + bytes[0])], 0x00);
         }
@@ -338,7 +339,6 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
                     continue;
                 }
 
-                var fullBlock = blockTask.Result.GetBlockResponse.Block;
                 var childBlocks = await GetBlocksAsync(logger, block.Hash, ct);
                 var confirms = childBlocks.GetBlocksResponse.BlockHashes.Count() - 1;
 
@@ -376,7 +376,7 @@ public class KaspaPayoutHandler : PayoutHandlerBase,
                         {
                             if(childBlock.VerboseData.IsChainBlock)
                             {
-                                if(childBlock.Transactions.Count() > 0)
+                                if(childBlock.Transactions.Any())
                                 {
                                     var tx = childBlock.Transactions[0];
                                     foreach(var output in tx.Outputs)
