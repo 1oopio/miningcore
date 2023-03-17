@@ -32,13 +32,13 @@ public class KaspaStratumMethods
     /// </summary>
     public const string SetExtranonce = "set_extranonce";
 
-    /// <summary>    
+    /// <summary>
     /// Set extra nonce parameter for miner alternate version
     /// </summary>
     public const string SetExtranonceAlt = "mining.set_extranonce";
 
     /// <summary>
-    /// Reported hashrate 
+    /// Reported hashrate
     /// </summary>
     public const string SubmitHashrate = "eth_submitHashrate";
 

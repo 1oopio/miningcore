@@ -18,6 +18,7 @@ using Miningcore.Stratum;
 using Miningcore.Time;
 using Newtonsoft.Json;
 using static Miningcore.Util.ActionUtils;
+
 namespace Miningcore.Blockchain.Kaspa;
 
 [CoinFamily(CoinFamily.Kaspa)]
@@ -216,7 +217,7 @@ public class KaspaPool : PoolBase
                 Worker = context.Worker,
                 Hashrate = longHashrate
             };
-            messageBus.SendMessage(new StratumReportedHashrate(connection, reported));
+            messageBus.SendMessage(reported);
         }
     }
 
