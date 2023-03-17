@@ -299,6 +299,9 @@
     <ClInclude Include="sha512_256.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="schnorr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="sha256dt.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -578,6 +581,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="sha256dt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="schnorr.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

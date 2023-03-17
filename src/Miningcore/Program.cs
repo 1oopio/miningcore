@@ -56,6 +56,7 @@ using WebSocketManager;
 using static Miningcore.Util.ActionUtils;
 using ILogger = NLog.ILogger;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
+using NexaPow = Miningcore.Native.NexaPow;
 
 // ReSharper disable AssignNullToNotNullAttribute
 // ReSharper disable PossibleNullReferenceException
@@ -813,6 +814,9 @@ public class Program : BackgroundService
 
         // Configure AstroBWT
         Miningcore.Native.Astrobwt.messageBus = messageBus;
+
+        // Configure NexaPow
+        Crypto.Hashing.Algorithms.NexaPow.messageBus = messageBus;
     }
 
     private static async Task ConfigurePostgresCompatibilityOptions(IServiceProvider services)

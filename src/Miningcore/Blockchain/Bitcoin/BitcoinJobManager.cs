@@ -38,7 +38,7 @@ public class BitcoinJobManager : BitcoinJobManagerBase<BitcoinJob>
             if(coin.BlockTemplateRpcExtraParams.Type == JTokenType.Array)
                 result = result.Concat(coin.BlockTemplateRpcExtraParams.ToObject<object[]>() ?? Array.Empty<object>()).ToArray();
             else
-                result = result.Concat(new []{ coin.BlockTemplateRpcExtraParams.ToObject<object>()}).ToArray();
+                result = result.Concat(new[] { coin.BlockTemplateRpcExtraParams.ToObject<object>() }).ToArray();
         }
 
         return result;
@@ -71,7 +71,7 @@ public class BitcoinJobManager : BitcoinJobManagerBase<BitcoinJob>
         if(poolConfig.EnableInternalStratum == true && coin.HeaderHasherValue is IHashAlgorithmInit hashInit)
         {
             if(!hashInit.DigestInit(poolConfig))
-                logger.Error(()=> $"{hashInit.GetType().Name} initialization failed");
+                logger.Error(() => $"{hashInit.GetType().Name} initialization failed");
         }
     }
 
