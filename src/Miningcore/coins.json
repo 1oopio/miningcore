@@ -342,6 +342,7 @@
         "headerHasher": {
             "hash": "nexapow"
         },
+        "coinbaseMinConfimations": 5001,
         "explorerBlockLink": "https://bchblockexplorer.com/block/$height$",
         "explorerTxLink": "https://bchblockexplorer.com/tx/{0}",
         "explorerAccountLink": "https://bchblockexplorer.com/address/{0}",
