@@ -47,7 +47,7 @@ public class KaspaGrpcRPCClient
 
             await stream.RequestStream.WriteAsync(reqMessage, ct);
 
-            await foreach(var response in stream.ResponseStream.ReadAllAsync())
+            await foreach(var response in stream.ResponseStream.ReadAllAsync(ct))
             {
                 logger.Trace(() => $"Received gRPC response: {response}");
                 stream.Dispose();
