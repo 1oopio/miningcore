@@ -38,7 +38,7 @@ public class KaspaGrpcRPCClient
             var method = reqMessage.PayloadCase.ToString();
             var protocol = config.Ssl ? Uri.UriSchemeHttps : Uri.UriSchemeHttp;
             var requestUrl = $"{protocol}://{config.Host}:{config.Port}";
-            var channel = GrpcChannel.ForAddress(requestUrl);
+            using var channel = GrpcChannel.ForAddress(requestUrl);
             var client = new Messages.RPC.RPCClient(channel);
 
             stream = client.MessageStream(null, null);

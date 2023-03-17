@@ -26,20 +26,16 @@ public class KaspaGrpcWalletClient
     private readonly IMessageBus messageBus;
     private readonly string poolId;
 
-    private kaspawalletd.kaspawalletdClient GetClient()
-    {
-        var protocol = config.Ssl ? Uri.UriSchemeHttps : Uri.UriSchemeHttp;
-        var requestUrl = $"{protocol}://{config.Host}:{config.Port}";
-        var channel = GrpcChannel.ForAddress(requestUrl);
-        return new kaspawalletd.kaspawalletdClient(channel);
-    }
-
     public async Task<GetBalanceResponse> GetBalanceAsync(ILogger logger, CancellationToken ct)
     {
         var sw = Stopwatch.StartNew();
         try
         {
-            var client = GetClient();
+            var protocol = config.Ssl ? Uri.UriSchemeHttps : Uri.UriSchemeHttp;
+            var requestUrl = $"{protocol}://{config.Host}:{config.Port}";
+            using var channel = GrpcChannel.ForAddress(requestUrl);
+            var client =  new kaspawalletd.kaspawalletdClient(channel);
+
             var req = new GetBalanceRequest();
 
             logger.Trace(() => $"Sending gRPC request to wallet: {req}");
@@ -66,7 +62,11 @@ public class KaspaGrpcWalletClient
         var sw = Stopwatch.StartNew();
         try
         {
-            var client = GetClient();
+            var protocol = config.Ssl ? Uri.UriSchemeHttps : Uri.UriSchemeHttp;
+            var requestUrl = $"{protocol}://{config.Host}:{config.Port}";
+            using var channel = GrpcChannel.ForAddress(requestUrl);
+            var client = new kaspawalletd.kaspawalletdClient(channel);
+
             var req = new ShowAddressesRequest();
 
             logger.Trace(() => $"Sending gRPC request to wallet: {req}");
@@ -93,7 +93,10 @@ public class KaspaGrpcWalletClient
         var sw = Stopwatch.StartNew();
         try
         {
-            var client = GetClient();
+            var protocol = config.Ssl ? Uri.UriSchemeHttps : Uri.UriSchemeHttp;
+            var requestUrl = $"{protocol}://{config.Host}:{config.Port}";
+            using var channel = GrpcChannel.ForAddress(requestUrl);
+            var client = new kaspawalletd.kaspawalletdClient(channel);
 
             logger.Trace(() => $"Sending gRPC request to wallet: {req}");
 
