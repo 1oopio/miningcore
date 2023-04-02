@@ -37,6 +37,7 @@ jobs:
             type=semver,event=tag,pattern={{version}}
             type=semver,event=tag,pattern={{major}}.{{minor}}
             type=ref,event=pr
+            type=sha,format=short,prefix=sha-,event=pr
       -
         name: Log in to the container registry
         uses: docker/login-action@v2
