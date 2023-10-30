@@ -466,6 +466,10 @@ public abstract class BitcoinJobManagerBase<TJob> : JobManagerBase<TJob>
         else
             network = daemonInfoResponse.Testnet ? Network.TestNet : Network.Main;
 
+        // special case for nexa mainnet
+        if(blockchainInfoResponse.Chain == "nexa")
+            network = Network.Main;
+
         PostChainIdentifyConfigure();
 
         // ensure pool owns wallet
