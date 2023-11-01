@@ -81,6 +81,18 @@ public static unsafe class Multihash
 
     [DllImport("libmultihash", EntryPoint = "blake2b_export", CallingConvention = CallingConvention.Cdecl)]
     public static extern void blake2b(byte* input, void* output, uint inputLength, int outputLength);
+    
+    [DllImport("libmultihash", EntryPoint = "blake2b_init_export", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr blake2b_init(int outputLength);
+
+    [DllImport("libmultihash", EntryPoint = "blake2b_init_key_export", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr blake2b_init_key(int outputLength, byte* key, uint keyLength);
+
+    [DllImport("libmultihash", EntryPoint = "blake2b_update_export", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void blake2b_update(IntPtr state, byte* input, uint inputLength);
+    
+    [DllImport("libmultihash", EntryPoint = "blake2b_final_export", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void blake2b_final(IntPtr state, void* output, int outputLength);
 
     [DllImport("libmultihash", EntryPoint = "dcrypt_export", CallingConvention = CallingConvention.Cdecl)]
     public static extern void dcrypt(byte* input, void* output, uint inputLength);
@@ -93,6 +105,9 @@ public static unsafe class Multihash
 
     [DllImport("libmultihash", EntryPoint = "heavyhash_export", CallingConvention = CallingConvention.Cdecl)]
     public static extern void heavyhash(byte* input, void* output, uint inputLength);
+
+    [DllImport("libmultihash", EntryPoint = "heavyhash_kaspa_export", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void heavyhash_kaspa(byte* input, byte* seed, void* output, uint inputLength, uint seedLength);
 
     [DllImport("libmultihash", EntryPoint = "s3_export", CallingConvention = CallingConvention.Cdecl)]
     public static extern void s3(byte* input, void* output, uint inputLength);

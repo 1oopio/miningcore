@@ -12,7 +12,7 @@ extern "C" {
 
 #include <stdint.h>
 void heavyhash_hash(const char* input, char* output, uint32_t len);
-
+void heavyhash_hash_kaspa(const char* input, const char* seed, char* output, uint32_t len, uint32_t seed_len);
 
 #ifdef __cplusplus
 }

@@ -41,6 +41,17 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Protobuf Include="Blockchain\Kaspa\RPC\messages.proto" GrpcServices="Client" />
+      <Protobuf Include="Blockchain\Kaspa\RPC\kaspawalletd.proto" GrpcServices="Client" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Google.Protobuf" Version="3.21.4" />
+        <PackageReference Include="Grpc.Net.Client" Version="2.47.0" />
+        <PackageReference Include="Grpc.Tools" Version="2.47.0">
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+          <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
         <PackageReference Include="AspNetCoreRateLimit" Version="4.0.2" />
         <PackageReference Include="Autofac" Version="6.4.0" />
         <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="8.0.0" />
